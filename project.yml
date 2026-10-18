@@ -1,0 +1,41 @@
+name: Skies
+options:
+  bundleIdPrefix: com.btstd
+  deploymentTarget:
+    iOS: "18.0"
+    macOS: "15.0"
+targets:
+  Skies:
+    type: application
+    supportedDestinations: [iOS, macOS]
+    sources: [Skies]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.btstd.skies
+        SWIFT_VERSION: "6.0"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Skies
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleLightContent
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_APP_SANDBOX: YES
+    scheme:
+      testTargets: [SkiesTests]
+  SkiesTests:
+    type: bundle.unit-test
+    supportedDestinations: [iOS, macOS]
+    sources: [SkiesTests]
+    dependencies:
+      - target: Skies
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Skies.app/Contents/MacOS/Skies"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Automatic
