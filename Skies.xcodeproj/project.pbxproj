@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		5E73686C0862473F6D06557A /* Scrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = D29562640800AF3AEF507AA0 /* Scrubber.swift */; };
+		64F99FDDFDD32B2892049C85 /* People.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DD0311538D16C2950248E2 /* People.swift */; };
+		9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */; };
 		A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */; };
 		AD115356A2B66E96BC1A5FDE /* Sky.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A108332937315E09541041 /* Sky.swift */; };
 		EAAD1F318C1988BD6C6E1441 /* SkyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02152E27B4A61FA235A856E /* SkyTests.swift */; };
@@ -27,10 +29,12 @@
 /* Begin PBXFileReference section */
 		5A563B8735224F0390D5C92A /* Skies.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Skies.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		79A108332937315E09541041 /* Sky.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sky.swift; sourceTree = "<group>"; };
+		85DD0311538D16C2950248E2 /* People.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = People.swift; sourceTree = "<group>"; };
 		90BFB6578061984319CE8089 /* SkiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesView.swift; sourceTree = "<group>"; };
 		A02152E27B4A61FA235A856E /* SkyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTests.swift; sourceTree = "<group>"; };
 		D29562640800AF3AEF507AA0 /* Scrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scrubber.swift; sourceTree = "<group>"; };
 		D494AA1A465DCC431EA917CB /* SkiesTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SkiesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleViews.swift; sourceTree = "<group>"; };
 		DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -55,6 +59,8 @@
 		7DCEFFBDC5AA73A70EDF2D13 /* Skies */ = {
 			isa = PBXGroup;
 			children = (
+				85DD0311538D16C2950248E2 /* People.swift */,
+				D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */,
 				D29562640800AF3AEF507AA0 /* Scrubber.swift */,
 				DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */,
 				90BFB6578061984319CE8089 /* SkiesView.swift */,
@@ -152,6 +158,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				64F99FDDFDD32B2892049C85 /* People.swift in Sources */,
+				9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */,
 				5E73686C0862473F6D06557A /* Scrubber.swift in Sources */,
 				A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */,
 				FA6060891A86BE5DE8B00F4C /* SkiesView.swift in Sources */,
@@ -332,6 +340,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Skies;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -362,6 +371,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Skies;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
