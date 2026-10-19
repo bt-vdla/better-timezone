@@ -19,6 +19,11 @@ extension Animation {
 
 func sf(_ size: CGFloat, _ weight: Font.Weight) -> Font { .system(size: size, weight: weight) }
 
+/// Weather-style legibility for white type over a live sky.
+extension View {
+    func skyLegible() -> some View { compositingGroup().shadow(color: .black.opacity(0.25), radius: 8, y: 1) }
+}
+
 struct PressScale: ButtonStyle {
     var scale = 0.95
     func makeBody(configuration: Configuration) -> some View {
@@ -29,15 +34,23 @@ struct PressScale: ButtonStyle {
 }
 
 enum Sheet: Identifiable {
-    case people, person(UUID)
-    var id: String { if case .person(let id) = self { id.uuidString } else { "people" } }
+    case people, person(UUID), planner
+    var id: String {
+        switch self {
+        case .people: "people"
+        case .planner: "planner"
+        case .person(let id): id.uuidString
+        }
+    }
 }
 
 struct SkiesView: View {
+    let people: People
     @State private var model = Scrubber()
-    @State private var people = People()
     @State private var sheet: Sheet?
     @State private var width = 390.0
+    @AppStorage("coached") private var coached = false
+    @Namespace private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -51,7 +64,7 @@ struct SkiesView: View {
                 .onEnded { model.dragEnded($0) }
         )
         .onGeometryChange(for: Double.self) { $0.size.width } action: { width = $0 }
-        .background(Color(hex: 0x0A0C1A))
+        .background(Color(hex: 0x05070F))
         .preferredColorScheme(.dark)
         .focusable()
         .focusEffectDisabled()
@@ -73,7 +86,8 @@ struct SkiesView: View {
         .sheet(item: $sheet) { s in
             switch s {
             case .people: PeopleSheet(people: people)
-            case .person(let id): PersonSheet(people: people, id: id)
+            case .person(let id): PersonPage(people: people, model: model, id: id)
+            case .planner: PlannerSheet(people: people, model: model)
             }
         }
     }
@@ -108,21 +122,22 @@ struct SkiesView: View {
         }
 
         return VStack(spacing: 0) {
-            ForEach(Array(people.list.enumerated()), id: \.1.id) { i, p in
-                SkyRow(person: p, local: p.isHome ? h : Local(p.tz, m), home: h, stars: starField[i % starField.count],
+            ForEach(people.list) { p in
+                SkyRow(person: p, minutes: m, local: p.isHome ? h : Local(p.tz, m), home: h,
                        dimmed: !people.everyone && !people.team.contains(p), picked: !people.picked.isEmpty && people.picked.contains(p.id),
                        animateDigits: !model.isMoving)
                     .contentShape(Rectangle())
                     .onTapGesture { people.toggle(p) }
                     .contextMenu {
-                        Button("Edit \(p.city)…", systemImage: "pencil") { sheet = .person(p.id) }
+                        Button("Open \(p.city)", systemImage: "arrow.up.left.and.arrow.down.right") { sheet = .person(p.id) }
                         if !p.isHome {
-                            Button("Only \(p.city)", systemImage: "person.crop.circle") { people.picked = [p.id] }
+                            Button("Plan with \(p.city) only", systemImage: "person.crop.circle") { people.picked = [p.id] }
                         }
                         Button("Edit People…", systemImage: "person.2") { sheet = .people }
                     }
                     .accessibilityAddTraits(people.picked.contains(p.id) ? .isSelected : [])
                     .accessibilityHint(p.isHome ? "" : "Double-tap to include in the overlap")
+                    .accessibilityAction(named: "Open \(p.city)") { sheet = .person(p.id) }
             }
         }
         .animation(.easeOutStrong(0.2), value: people.picked)
@@ -133,71 +148,87 @@ struct SkiesView: View {
     }
 
     private func header(when: String, m: Double, home: Person, showNow: Bool) -> some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(when)
-                    .font(sf(34, .bold)).tracking(-0.6).monospacedDigit()
+                    .font(sf(34, .semibold)).tracking(-0.5).monospacedDigit()
                     .accessibilityAddTraits(.updatesFrequently)
                 // ponytail: String, not Text(_:format:), which swaps in the device time zone.
                 Text(Date(timeIntervalSince1970: m * 60)
                     .formatted(Date.FormatStyle(timeZone: home.tz).weekday(.wide).day().month(.wide)))
-                    .font(sf(13, .regular)).opacity(0.72)
+                    .font(sf(15, .medium)).opacity(0.8)
             }
+            .skyLegible()
             Spacer()
-            Button("Now", action: model.goNow)
-                .font(sf(15, .semibold))
-                .foregroundStyle(Color(hex: 0x1D1603))
-                .padding(.horizontal, 16).padding(.vertical, 9)
-                .background(Color.sun, in: Capsule())
-                .buttonStyle(PressScale())
-                .scaleEffect(showNow || reduceMotion ? 1 : 0.9)
-                .opacity(showNow ? 1 : 0)
-                .allowsHitTesting(showNow)
-                .animation(.spring(response: 0.3, dampingFraction: 1), value: showNow)
-            Button { sheet = .people } label: {
-                Image(systemName: "person.2.fill")
-                    .font(sf(15, .semibold))
-                    .frame(width: 38, height: 38)
-                    .background(.white.opacity(0.14), in: Circle())
+            GlassEffectContainer(spacing: 10) {
+                HStack(spacing: 10) {
+                    if showNow {
+                        Button("Now", action: model.goNow)
+                            .font(sf(15, .semibold))
+                            .foregroundStyle(Color(hex: 0x1D1603))
+                            .padding(.horizontal, 16).frame(height: 40)
+                            .glassEffect(.regular.tint(.sun).interactive(), in: Capsule())
+                            .glassEffectID("now", in: glass)
+                            .buttonStyle(.plain)
+                    }
+                    Button { sheet = .people } label: {
+                        Image(systemName: "person.2.fill").font(sf(15, .semibold)).frame(width: 40, height: 40)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.interactive(), in: Circle())
+                    .glassEffectID("people", in: glass)
+                    .accessibilityLabel("People")
+                }
             }
-            .buttonStyle(PressScale())
-            .accessibilityLabel("People")
+            .animation(reduceMotion ? .easeOutStrong(0.2) : .spring(response: 0.35, dampingFraction: 1), value: showNow)
         }
         .foregroundStyle(.white)
-        .padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 15)
-        .background { glass(tint: Color(hex: 0x0A0C1E, opacity: 0.34), solid: Color(hex: 0x14172E)) }
+        .padding(.horizontal, 22).padding(.top, 8).padding(.bottom, 14)
+        .background { EdgeFade(edge: .top) }
     }
 
     private func dock(m: Double, now: Double, h: Local, when: String, hourKey: Int) -> some View {
         let ov = overlap(m, now: now)
-        return VStack(spacing: 0) {
-            Button {
-                if let t = ov.target { model.springTo(t, response: 0.5) }
-            } label: {
-                HStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 4).fill(Color.mint).frame(width: 13, height: 13)
-                    VStack(alignment: .leading, spacing: 4) {
-                        ov.text.font(sf(13, .regular))
-                        if let note = ov.note {
-                            Label(note, systemImage: "clock.arrow.2.circlepath")
-                                .font(sf(12, .medium)).foregroundStyle(Color.sun)
+        return VStack(spacing: 12) {
+            if !coached { coach }
+            HStack(spacing: 12) {
+                Button {
+                    if let t = ov.target { model.springTo(t, response: 0.5) }
+                } label: {
+                    HStack(spacing: 10) {
+                        Circle().fill(Color.mint).frame(width: 9, height: 9)
+                        VStack(alignment: .leading, spacing: 4) {
+                            ov.text.font(sf(14, .regular))
+                            if let note = ov.note {
+                                Label(note, systemImage: "clock.arrow.2.circlepath")
+                                    .font(sf(12, .medium)).foregroundStyle(Color.sun)
+                            }
                         }
+                        .multilineTextAlignment(.leading)
+                        Spacer(minLength: 0)
                     }
-                    .multilineTextAlignment(.leading)
-                    Spacer(minLength: 0)
-                    if !people.everyone {
-                        Button { people.picked = [] } label: {
-                            Image(systemName: "xmark.circle.fill").font(sf(17, .regular)).opacity(0.6)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Include everyone")
-                    }
+                    .contentShape(Rectangle())
                 }
-                .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(Color.mint.opacity(0.13), in: RoundedRectangle(cornerRadius: 16))
+                .buttonStyle(PressScale(scale: 0.98))
+
+                if !people.everyone {
+                    Button { people.picked = [] } label: {
+                        Image(systemName: "xmark").font(sf(13, .bold)).frame(width: 30, height: 30)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.interactive(), in: Circle())
+                    .accessibilityLabel("Include everyone")
+                }
+                Button { sheet = .planner } label: {
+                    Image(systemName: "calendar").font(sf(14, .semibold)).frame(width: 30, height: 30)
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: Circle())
+                .accessibilityLabel("This week")
             }
-            .buttonStyle(PressScale(scale: 0.98))
-            .padding(.horizontal, 18).padding(.bottom, 12)
+            .padding(.leading, 16).padding(.trailing, 10).padding(.vertical, 10)
+            .glassEffect(.regular.tint(.mint.opacity(0.18)), in: RoundedRectangle(cornerRadius: 22))
+            .padding(.horizontal, 14)
 
             Tape(m: m, now: now, hourKey: hourKey, home: people.home, team: people.team, all: people.list)
                 .frame(height: 68)
@@ -206,29 +237,56 @@ struct SkiesView: View {
                 .accessibilityLabel("Scrub time")
                 .accessibilityValue("\(people.home.city) \(clock(h)) \(ampm(h.h)), \(when)")
                 .accessibilityAdjustableAction { $0 == .increment ? model.step(15) : model.step(-15) }
-
-            Text(hint)
-                .font(sf(12, .regular))
-                .opacity(model.hintGone ? 0 : 0.55)
-                .animation(.easeOutStrong(0.3), value: model.hintGone)
-                .padding(.top, 4)
         }
         .foregroundStyle(.white)
-        .padding(.top, 14).padding(.bottom, 8)
-        .background { glass(tint: Color(hex: 0x080A18, opacity: 0.64), solid: Color(hex: 0x0B0D1C)) }
+        .padding(.top, 18).padding(.bottom, 6)
+        .background { EdgeFade(edge: .bottom) }
     }
 
-    private var hint: String {
+    // MARK: Coaching: learn by doing, once
+
+    private var coach: some View {
+        let stage = !model.hintGone ? 0 : people.picked.isEmpty ? 1 : 2
+        let (icon, title, body): (String, String, String) = switch stage {
+            case 0: ("hand.draw", "Drag the sky", dragHint)
+            case 1: ("hand.tap", "Tap a city", "Pick who you want to talk to. You're always included.")
+            default: ("checkmark.circle", "That's your overlap", "Green on the tape is when you're all free. Tap the pill to jump there.")
+        }
+        // Sits in the dock, above the pill, so it never covers the rows it's asking you to touch.
+        return HStack(alignment: .center, spacing: 14) {
+            Image(systemName: icon).font(sf(26, .regular)).frame(width: 34)
+                .symbolEffect(.wiggle, options: .repeat(.periodic(delay: 2)), isActive: !reduceMotion && stage < 2)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(sf(17, .semibold))
+                Text(body).font(sf(14, .regular)).opacity(0.85).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            if stage == 2 {
+                Button("Got it") { coached = true }
+                    .font(sf(15, .semibold)).padding(.horizontal, 16).frame(height: 36)
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.tint(.mint.opacity(0.5)).interactive(), in: Capsule())
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(16)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 22))
+        .padding(.horizontal, 14)
+        .id(stage)
+        .transition(.scale(scale: 0.95).combined(with: .opacity))
+        .animation(.easeOutStrong(0.25), value: stage)
+        .allowsHitTesting(stage == 2)
+    }
+
+    private var dragHint: String {
         #if os(macOS)
-        "Drag or swipe with two fingers. Tap a city to plan with them."
+        "Drag sideways, or swipe with two fingers, to move through time."
         #else
-        "Drag across the skies. Tap a city to plan with them."
+        "Slide sideways anywhere to move through time."
         #endif
     }
 
-    private func glass(tint: Color, solid: Color) -> some View {
-        ReduceTransparencyAware(tint: tint, solid: solid).ignoresSafeArea()
-    }
+    // MARK: Overlap text
 
     private var who: String {
         if people.everyone { return "Everyone" }
@@ -238,9 +296,8 @@ struct SkiesView: View {
 
     private func overlap(_ m: Double, now: Double) -> (text: Text, target: Double?, note: String?) {
         let home = people.home
-        let start = dayStart(home.tz, m)
-        let runs = people.runs(from: start)
-        let note = clockNote(after: max(m, now))
+        let runs = people.runs(from: dayStart(home.tz, m))
+        let note = clockNote(people, after: max(m, now))
         func homeTime(_ x: Double) -> (String, String) { let l = Local(home.tz, x); return (clock(l), ampm(l.h)) }
 
         if let inside = runs.first(where: { $0.lowerBound <= m && m < $0.upperBound }) {
@@ -250,125 +307,113 @@ struct SkiesView: View {
         guard let r = runs.first(where: { $0.lowerBound > m }) else {
             return (Text("\(who): no shared free time in the next week"), nil, note)
         }
-        let a = homeTime(r.lowerBound), b = homeTime(r.upperBound)
-        let range = a.1 == b.1 ? "\(a.0)–\(b.0) \(b.1)" : "\(a.0) \(a.1)–\(b.0) \(b.1)"
         let days = Local(home.tz, r.lowerBound).dn - Local(home.tz, m).dn
         let day = days == 0 ? "" : days == 1 ? "tomorrow " : Calendar.current.weekdaySymbols[Local(home.tz, r.lowerBound).wd] + " "
-        return (Text("\(who) free \(day)\(Text(range).bold()) your time. Tap to jump."), r.lowerBound, note)
-    }
-
-    /// The first upcoming clock change in the next two weeks that actually changes the shared window.
-    private func clockNote(after m: Double) -> String? {
-        let home = people.home, team = people.team
-        func shared(_ x: Double) -> Double {
-            freeRuns(team, from: dayStart(home.tz, x), slots: 96).reduce(0) { $0 + $1.upperBound - $1.lowerBound }
-        }
-        for c in clockChanges(team, in: m...(m + 14 * 1440)) {
-            // Same weekday a week apart, so days off don't read as a clock-change effect.
-            let before = shared(c.at + 1440 - 7 * 1440), after = shared(c.at + 1440)
-            guard before != after else { continue }
-            let date = Date(timeIntervalSince1970: c.at * 60)
-                .formatted(Date.FormatStyle(timeZone: home.tz).weekday(.abbreviated).day().month(.abbreviated))
-            let change = after == 0 ? "no shared time" : after < before ? "shrinks to \(dur(after))" : "grows to \(dur(after))"
-            return "From \(date), \(c.person.city) clocks change: overlap \(change)"
-        }
-        return nil
+        return (Text("\(who) free \(day)\(Text(timeRange(r, home)).bold()) your time. Tap to jump."), r.lowerBound, note)
     }
 }
 
-private struct ReduceTransparencyAware: View {
-    let tint: Color, solid: Color
+func timeRange(_ r: ClosedRange<Double>, _ home: Person) -> String {
+    let a = Local(home.tz, r.lowerBound), b = Local(home.tz, r.upperBound)
+    return ampm(a.h) == ampm(b.h) ? "\(clock(a))–\(clock(b)) \(ampm(b.h))" : "\(clock(a)) \(ampm(a.h))–\(clock(b)) \(ampm(b.h))"
+}
+
+/// The first upcoming clock change in the next two weeks that actually changes the team's shared window.
+@MainActor func clockNote(_ people: People, after m: Double) -> String? {
+    let home = people.home, team = people.team
+    func shared(_ x: Double) -> Double {
+        freeRuns(team, from: dayStart(home.tz, x), slots: 96).reduce(0) { $0 + $1.upperBound - $1.lowerBound }
+    }
+    for c in clockChanges(team, in: m...(m + 14 * 1440)) {
+        // Same weekday a week apart, so days off don't read as a clock-change effect.
+        let before = shared(c.at + 1440 - 7 * 1440), after = shared(c.at + 1440)
+        guard before != after else { continue }
+        let date = Date(timeIntervalSince1970: c.at * 60)
+            .formatted(Date.FormatStyle(timeZone: home.tz).weekday(.abbreviated).day().month(.abbreviated))
+        let change = after == 0 ? "no shared time" : after < before ? "shrinks to \(dur(after))" : "grows to \(dur(after))"
+        return "From \(date), \(c.person.city) clocks change: overlap \(change)"
+    }
+    return nil
+}
+
+/// Chrome that melts into the sky instead of sitting on it as a slab.
+struct EdgeFade: View {
+    let edge: VerticalEdge
     @Environment(\.accessibilityReduceTransparency) private var reduce
 
     var body: some View {
-        if reduce { solid } else { Rectangle().fill(.ultraThinMaterial).overlay(tint) }
+        let fade = LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.55),
+                                          .init(color: .clear, location: 1)],
+                                  startPoint: edge == .top ? .top : .bottom, endPoint: edge == .top ? .bottom : .top)
+        Group {
+            if reduce { Color(hex: 0x0B0D1C) }
+            else { Rectangle().fill(.ultraThinMaterial).overlay(Color.black.opacity(edge == .top ? 0.15 : 0.35)).mask(fade) }
+        }
+        .ignoresSafeArea()
     }
 }
 
 // MARK: - Sky band
 
-struct Star { let x, y, s: Double }
-
-let starField: [[Star]] = {
-    var seed = 7.0
-    func rnd() -> Double { seed = (seed * 16807).truncatingRemainder(dividingBy: 2147483647); return seed / 2147483647 }
-    return (0..<12).map { _ in (0..<12).map { _ in Star(x: rnd(), y: rnd(), s: 0.6 + rnd() * 0.9) } }
-}()
-
 struct SkyRow: View {
-    let person: Person, local: Local, home: Local, stars: [Star]
+    let person: Person, minutes: Double, local: Local, home: Local
     var dimmed = false, picked = false, animateDigits = true
 
     var body: some View {
-        let pos = solar(local.f, sun(person, local))
-        let (c1, c2) = sky(pos.skyHour)
-        let lu = luminance(mix(c1, c2, 0.55))
-        let ink = Color(mix(RGB(255, 255, 255), RGB(16, 19, 34), smooth(clamp01((lu - 0.32) / 0.16))))
         let (label, dot) = status(person, local)
-
         ViewThatFits(in: .vertical) {
-            content(ink: ink, label: label, dot: dot, compact: false)
-            content(ink: ink, label: label, dot: dot, compact: true)
+            content(label: label, dot: dot, compact: false)
+            content(label: label, dot: dot, compact: true)
         }
-        .foregroundStyle(ink)
+        .foregroundStyle(.white)
+        .skyLegible()
         .padding(.horizontal, 22)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { Orb(day: pos.day, arc: pos.arc).padding(.horizontal, 22) }
         .background {
-            ZStack {
-                LinearGradient(colors: [Color(c1), Color(c2)], startPoint: .top, endPoint: .bottom)
-                Canvas { ctx, size in
-                    for s in stars {
-                        let r = s.s
-                        ctx.fill(Path(ellipseIn: CGRect(x: s.x * size.width - r, y: s.y * size.height - r, width: r * 2, height: r * 2)),
-                                 with: .color(.white))
-                    }
-                }
-                .opacity(clamp01((0.1 - lu) / 0.07))
+            GeometryReader { g in
+                SkyBackground(person: person, minutes: minutes, insets: g.safeAreaInsets).ignoresSafeArea()
             }
-            .ignoresSafeArea()
         }
-        .overlay { Color.black.opacity(dimmed ? 0.45 : 0).allowsHitTesting(false) }
+        .overlay { Color.black.opacity(dimmed ? 0.5 : 0).allowsHitTesting(false) }
         .clipped()
         .accessibilityElement(children: .combine)
     }
 
-    private func content(ink: Color, label: String, dot: RGB, compact: Bool) -> some View {
+    private func content(label: String, dot: RGB, compact: Bool) -> some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
-                    Text(person.city).font(sf(compact ? 17 : 20, .semibold))
+                    Text(person.city).font(sf(compact ? 18 : 22, .semibold))
                     if picked {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(sf(compact ? 14 : 16, .semibold))
+                            .font(sf(compact ? 15 : 17, .semibold))
                             .transition(.scale(scale: 0.9).combined(with: .opacity))
                     }
                 }
                 if !compact {
                     if !person.label.isEmpty {
-                        Text(person.label).font(sf(13, .regular)).opacity(0.72).padding(.top, 2)
+                        Text(person.label).font(sf(14, .medium)).opacity(0.8).padding(.top, 2)
                     }
                     HStack(spacing: 6) {
                         Circle().fill(Color(dot)).frame(width: 7, height: 7)
-                            .background(Circle().fill(ink.opacity(0.3)).padding(-1.5))
                         Text(label).font(sf(12, .semibold))
                     }
                     .padding(.vertical, 4).padding(.leading, 8).padding(.trailing, 10)
-                    .background(ink.opacity(0.13), in: Capsule())
+                    .background(.white.opacity(0.16), in: Capsule())
                     .padding(.top, 9)
                 } else {
-                    Text(label).font(sf(12, .medium)).opacity(0.78)
+                    Text(label).font(sf(12, .medium)).opacity(0.8)
                 }
             }
             Spacer(minLength: 0)
-            VStack(alignment: .trailing, spacing: compact ? 2 : 6) {
+            VStack(alignment: .trailing, spacing: compact ? 0 : 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(clock(local)).font(sf(compact ? 34 : 44, .bold)).tracking(compact ? -0.6 : -1).monospacedDigit()
+                    Text(clock(local)).font(sf(compact ? 38 : 50, .light)).tracking(compact ? -0.6 : -1.2).monospacedDigit()
                         .contentTransition(.numericText(value: Double(local.h * 60 + local.m)))
                         .animation(animateDigits ? .easeOutStrong(0.25) : nil, value: local.m)
-                    Text(ampm(local.h)).font(sf(compact ? 13 : 15, .semibold))
+                    Text(ampm(local.h)).font(sf(compact ? 13 : 15, .medium))
                 }
-                Text(relative).font(sf(12, .regular)).opacity(0.78)
+                Text(relative).font(sf(12, .medium)).opacity(0.8)
             }
             .lineLimit(1)
         }
@@ -387,35 +432,6 @@ struct SkyRow: View {
     }
 }
 
-struct Orb: View {
-    let day: Bool, arc: Double
-    private let size = 27.0
-
-    var body: some View {
-        GeometryReader { g in
-            let x = arc * (g.size.width - size) + size / 2
-            let y = g.size.height - sin(.pi * arc) * g.size.height * 0.72
-            Group {
-                if day {
-                    Circle()
-                        .fill(RadialGradient(stops: [.init(color: Color(hex: 0xFFF7C9), location: 0),
-                                                     .init(color: .sun, location: 0.58),
-                                                     .init(color: Color(hex: 0xFFAE1F), location: 1)],
-                                             center: UnitPoint(x: 0.35, y: 0.35), startRadius: 0, endRadius: size * 0.92))
-                        .shadow(color: Color(hex: 0xFFCD46, opacity: 0.5), radius: 16)
-                } else {
-                    Circle().subtracting(Circle().offset(x: -7.7, y: 3.5))
-                        .fill(Color(hex: 0xF3EFFF))
-                        .shadow(color: Color(hex: 0xF3EFFF, opacity: 0.5), radius: 8)
-                }
-            }
-            .frame(width: size, height: size)
-            .position(x: x, y: y)
-        }
-        .accessibilityHidden(true)
-    }
-}
-
 // MARK: - Tape
 
 struct Tape: View {
@@ -431,8 +447,7 @@ struct Tape: View {
                 let xp = cx + (a - m) * pxPerMinute
                 let free = team.filter { $0.free(Local($0.tz, a)) }.count
                 if free > 0 {
-                    let everyone = free == team.count
-                    let alpha = everyone ? 0.3 : 0.03 + 0.12 * Double(free) / Double(team.count)
+                    let alpha = free == team.count ? 0.32 : 0.03 + 0.12 * Double(free) / Double(team.count)
                     ctx.fill(Path(CGRect(x: xp, y: 0, width: 15 * pxPerMinute + 0.6, height: bandH)), with: .color(.mint.opacity(alpha)))
                 }
                 let l = Local(home.tz, a)

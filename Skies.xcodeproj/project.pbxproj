@@ -7,9 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		252D981C9F5C1BCADACA27EA /* SkyBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC6F410F694BB5D05F0E7216 /* SkyBackground.swift */; };
+		4822B1FF64A0DF3FC290AA0A /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720388C0964E7C61BCA36AB4 /* Onboarding.swift */; };
 		5E73686C0862473F6D06557A /* Scrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = D29562640800AF3AEF507AA0 /* Scrubber.swift */; };
 		64F99FDDFDD32B2892049C85 /* People.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DD0311538D16C2950248E2 /* People.swift */; };
+		67F9A043D98F205CA87C74B8 /* PersonPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD2C742802CE6055413F352 /* PersonPage.swift */; };
 		9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */; };
+		A287DA5E189072960DAABBAA /* Sky.metal in Sources */ = {isa = PBXBuildFile; fileRef = 25801DA363D61723BF70C5C8 /* Sky.metal */; };
+		A2E88BC37953DBC3004D127E /* Planner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A97F7DEB4B5653CD60056 /* Planner.swift */; };
 		A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */; };
 		AD115356A2B66E96BC1A5FDE /* Sky.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A108332937315E09541041 /* Sky.swift */; };
 		EAAD1F318C1988BD6C6E1441 /* SkyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02152E27B4A61FA235A856E /* SkyTests.swift */; };
@@ -27,7 +32,11 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		25801DA363D61723BF70C5C8 /* Sky.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Sky.metal; sourceTree = "<group>"; };
+		2D4A97F7DEB4B5653CD60056 /* Planner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Planner.swift; sourceTree = "<group>"; };
 		5A563B8735224F0390D5C92A /* Skies.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Skies.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5FD2C742802CE6055413F352 /* PersonPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonPage.swift; sourceTree = "<group>"; };
+		720388C0964E7C61BCA36AB4 /* Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
 		79A108332937315E09541041 /* Sky.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sky.swift; sourceTree = "<group>"; };
 		85DD0311538D16C2950248E2 /* People.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = People.swift; sourceTree = "<group>"; };
 		90BFB6578061984319CE8089 /* SkiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesView.swift; sourceTree = "<group>"; };
@@ -36,6 +45,7 @@
 		D494AA1A465DCC431EA917CB /* SkiesTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SkiesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleViews.swift; sourceTree = "<group>"; };
 		DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesApp.swift; sourceTree = "<group>"; };
+		EC6F410F694BB5D05F0E7216 /* SkyBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyBackground.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -59,12 +69,17 @@
 		7DCEFFBDC5AA73A70EDF2D13 /* Skies */ = {
 			isa = PBXGroup;
 			children = (
+				720388C0964E7C61BCA36AB4 /* Onboarding.swift */,
 				85DD0311538D16C2950248E2 /* People.swift */,
 				D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */,
+				5FD2C742802CE6055413F352 /* PersonPage.swift */,
+				2D4A97F7DEB4B5653CD60056 /* Planner.swift */,
 				D29562640800AF3AEF507AA0 /* Scrubber.swift */,
 				DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */,
 				90BFB6578061984319CE8089 /* SkiesView.swift */,
+				25801DA363D61723BF70C5C8 /* Sky.metal */,
 				79A108332937315E09541041 /* Sky.swift */,
+				EC6F410F694BB5D05F0E7216 /* SkyBackground.swift */,
 			);
 			path = Skies;
 			sourceTree = "<group>";
@@ -158,12 +173,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4822B1FF64A0DF3FC290AA0A /* Onboarding.swift in Sources */,
 				64F99FDDFDD32B2892049C85 /* People.swift in Sources */,
 				9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */,
+				67F9A043D98F205CA87C74B8 /* PersonPage.swift in Sources */,
+				A2E88BC37953DBC3004D127E /* Planner.swift in Sources */,
 				5E73686C0862473F6D06557A /* Scrubber.swift in Sources */,
 				A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */,
 				FA6060891A86BE5DE8B00F4C /* SkiesView.swift in Sources */,
+				A287DA5E189072960DAABBAA /* Sky.metal in Sources */,
 				AD115356A2B66E96BC1A5FDE /* Sky.swift in Sources */,
+				252D981C9F5C1BCADACA27EA /* SkyBackground.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -231,8 +251,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -319,8 +339,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

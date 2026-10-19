@@ -4,6 +4,8 @@ import MapKit
 struct PeopleSheet: View {
     @Bindable var people: People
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("onboarded") private var onboarded = true
+    @AppStorage("coached") private var coached = true
 
     var body: some View {
         NavigationStack {
@@ -23,6 +25,13 @@ struct PeopleSheet: View {
                 } label: {
                     Label("Add a city", systemImage: "plus.circle.fill")
                 }
+
+                Section {
+                    Button("Run setup again", systemImage: "sparkles") {
+                        coached = false
+                        onboarded = false
+                    }
+                }
             }
             .navigationTitle("People")
             .toolbar {
@@ -30,24 +39,6 @@ struct PeopleSheet: View {
                 #if os(iOS)
                 ToolbarItem(placement: .topBarLeading) { EditButton() }
                 #endif
-            }
-        }
-        #if os(macOS)
-        .frame(minWidth: 380, minHeight: 460)
-        #endif
-    }
-}
-
-struct PersonSheet: View {
-    @Bindable var people: People
-    let id: UUID
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            if let i = people.list.firstIndex(where: { $0.id == id }) {
-                PersonEditor(person: $people.list[i])
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             }
         }
         #if os(macOS)
@@ -67,8 +58,9 @@ private struct PersonLabel: View {
     }
 }
 
-private func hourText(_ h: Double) -> String {
-    let hh = Int(h) % 24, mm = Int((h - Double(Int(h))) * 60)
+func hourText(_ h: Double) -> String {
+    let h = (h.truncatingRemainder(dividingBy: 24) + 24).truncatingRemainder(dividingBy: 24)
+    let hh = Int(h), mm = Int(((h - Double(hh)) * 60).rounded()) % 60
     return mm == 0 ? "\(h12(hh)) \(ampm(hh))" : "\(h12(hh)):\(String(format: "%02d", mm)) \(ampm(hh))"
 }
 
@@ -153,7 +145,7 @@ struct CitySearch: View {
         List(results, id: \.self) { item in
             Button {
                 guard let tz = item.timeZone else { return }
-                onPick(name(item), tz, item.placemark.coordinate)
+                onPick(name(item), tz, item.location.coordinate)
                 dismiss()
             } label: {
                 VStack(alignment: .leading, spacing: 2) {
@@ -184,8 +176,16 @@ struct CitySearch: View {
         }
     }
 
-    private func name(_ item: MKMapItem) -> String { item.placemark.locality ?? item.name ?? "Unknown" }
-    private func subtitle(_ item: MKMapItem) -> String {
-        [item.placemark.administrativeArea, item.placemark.country].compactMap { $0 }.joined(separator: ", ")
-    }
+    private func name(_ item: MKMapItem) -> String { cityName(item) }
+    private func subtitle(_ item: MKMapItem) -> String { item.addressRepresentations?.regionName ?? "" }
+}
+
+func cityName(_ item: MKMapItem) -> String { item.addressRepresentations?.cityName ?? item.name ?? "Unknown" }
+
+/// The first Apple Maps place for a query that knows its time zone.
+func findPlace(_ query: String) async -> MKMapItem? {
+    let request = MKLocalSearch.Request()
+    request.naturalLanguageQuery = query
+    request.resultTypes = .address
+    return try? await MKLocalSearch(request: request).start().mapItems.first { $0.timeZone != nil }
 }

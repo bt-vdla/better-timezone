@@ -42,11 +42,23 @@ struct SkyTests {
     @Test func londonSunriseAndSunset() {
         let london = team[2]
         let s = sun(london, Local(london.tz, mondayNoonUTC))
-        // Real: 07:29 / 17:57 BST. The approximation should land within 15 minutes.
-        #expect(abs(s.rise - 7.48) < 0.25)
-        #expect(abs(s.set - 17.95) < 0.25)
-        #expect(solar(s.rise, s).skyHour == 6.25)
+        // Real: 07:29 / 17:57 BST. Should land within 6 minutes.
+        #expect(abs(s.rise - 7.48) < 0.1)
+        #expect(abs(s.set - 17.95) < 0.1)
         #expect(solar(s.noon, s).day)
+    }
+
+    @Test func londonNoonSunHeight() {
+        // Solar noon 19 Oct 2026 is about 11:44 UTC; declination is about −10.1°, so 90 − 51.5 − 10.1 ≈ 28.4° up.
+        let elev = sunPosition(team[2], mondayNoonUTC - 16).elev
+        #expect(abs(elev - 28.4) < 0.3)
+        #expect(sunPosition(team[2], mondayNoonUTC + 12 * 60).elev < -18)
+    }
+
+    @Test func moonPhaseAtAKnownFullMoon() {
+        // Full moon 25 Jan 2024 17:54 UTC.
+        let phase = moonPhase(1_706_205_240 / 60)
+        #expect(abs(phase - 0.5) < 0.03)
     }
 
     @Test func durations() {
