@@ -6,11 +6,15 @@ struct SkyBackground: View {
     let minutes: Double
     /// How far the layer runs on under chrome above and below the visible band.
     var insets = EdgeInsets()
+    /// Seconds, for twinkling stars; 0 holds them still (Reduce Motion).
+    var time: Double = 0
+    /// Halo, starburst and lens-flare strength: full on big skies, gentler behind text.
+    var flare: Double = 0.45
 
     var body: some View {
         let s = skyState(person, minutes)
         let seed = Double(person.city.unicodeScalars.reduce(0) { $0 &+ Int($1.value) } % 997)
-        let insets = insets
+        let insets = insets, time = time.truncatingRemainder(dividingBy: 3600), flare = flare
         Rectangle().visualEffect { content, proxy in
             let w = proxy.size.width, top = insets.top
             let h = max(1, proxy.size.height - insets.top - insets.bottom)
@@ -25,7 +29,7 @@ struct SkyBackground: View {
                 .float3(s.horizon.x / 255, s.horizon.y / 255, s.horizon.z / 255),
                 .float(s.sunElev), .float2(x(s.sunX), y(s.sunElev)),
                 .float(s.moonElev), .float2(x(min(1, max(0, s.moonX))), y(s.moonElev)), .float(s.phase),
-                .float(seed)))
+                .float(seed), .float(time), .float(flare)))
         }
         .accessibilityHidden(true)
     }

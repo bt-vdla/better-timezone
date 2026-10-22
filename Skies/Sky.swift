@@ -33,12 +33,12 @@ func dur(_ minutes: Double) -> String {
 }
 
 /// Merged 15-minute runs from `start` where every person in `team` is free.
-func freeRuns(_ team: [Person], from start: Double, slots: Int) -> [ClosedRange<Double>] {
+func freeRuns(_ team: [Person], from start: Double, slots: Int, mode: Person.Kind? = nil) -> [ClosedRange<Double>] {
     var runs: [ClosedRange<Double>] = []
     var cur: (Double, Double)?
     for k in 0..<slots {
         let a = start + Double(k) * 15
-        if team.allSatisfy({ $0.free(Local($0.tz, a)) }) {
+        if team.allSatisfy({ $0.free(Local($0.tz, a), with: mode) }) {
             cur = (cur?.0 ?? a, a + 15)
         } else if let c = cur {
             runs.append(c.0...c.1)
@@ -67,7 +67,12 @@ func clockChanges(_ people: [Person], in range: ClosedRange<Double>) -> [(at: Do
 
 struct Sun { let rise: Double, noon: Double, set: Double }   // local hours, may sit outside 0..<24
 
-private let gmtCalendar: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = .gmt; return c }()
+let gmtCalendar: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = .gmt; return c }()
+
+/// Year, month and day of a local day number.
+func gmtDay(_ dn: Int) -> DateComponents {
+    gmtCalendar.dateComponents([.year, .month, .day], from: Date(timeIntervalSince1970: Double(dn) * 86400))
+}
 
 /// NOAA-style approximation, good to a few minutes away from the poles.
 func sun(_ p: Person, _ l: Local) -> Sun {
@@ -182,20 +187,38 @@ func skyColors(_ elev: Double) -> (zenith: RGB, horizon: RGB) {
     return (mix(a1, b1, e), mix(a2, b2, e))
 }
 
+private let green = hex("#34D399"), amber = hex("#FFC46B"), orange = hex("#FFB347"),
+            blue = hex("#60B6FF"), purple = hex("#C9A7FF"), grey = hex("#9AA3C7")
+
+/// What they're probably doing, in the words that matter for how you know them.
 func status(_ p: Person, _ l: Local) -> (String, RGB) {
-    let f = l.f
-    if p.inHours(f) {
-        guard p.days.contains(l.wd) else { return ("Day off", hex("#60B6FF")) }
-        switch f {
-        case ..<9: return ("Coffee first", hex("#FFC46B"))
-        case 12.5..<13.5: return ("Lunch", hex("#FFB347"))
-        case 18...: return ("Off work", hex("#60B6FF"))
-        default: return ("Working", hex("#34D399"))
+    let f = l.f, weekday = (p.relation == .work ? p.workdays : p.weekdays).contains(l.wd)
+    switch p.relation {
+    case .work:
+        let workday = p.days.contains(l.wd)
+        if workday && p.inHours(f) {
+            if f - p.start < 0.75 && f >= p.start { return ("Coffee first", amber) }
+            if (12.5..<13.5).contains(f) { return ("Lunch", orange) }
+            return f >= 18 ? ("Off work", blue) : ("Working", green)
         }
+        // ponytail: assumes people sleep roughly 11 PM–6 AM outside their set hours.
+        if f >= 23 || f < 6 { return ("Asleep", grey) }
+        if !workday { return (weekday ? "Day off" : "Weekend", blue) }
+        if f < p.start { return ("Getting ready", amber) }
+        return f < 22 ? ("Off work", blue) : ("Winding down", purple)
+
+    case .personal:
+        guard p.days.contains(l.wd) && p.inHours(f) else {
+            let toStart = (p.start - f + 24).truncatingRemainder(dividingBy: 24)
+            let sinceEnd = (f - p.end + 24).truncatingRemainder(dividingBy: 24)
+            if toStart <= 1.5 { return ("Waking up", amber) }
+            if sinceEnd < 1 { return ("Winding down", purple) }
+            return ("Asleep", grey)
+        }
+        if p.busyDay(l) { return ("Probably busy", amber) }
+        if weekday && f < 9 { return ("Morning rush", amber) }
+        if weekday && (12.5..<13.5).contains(f) { return ("Lunch break", orange) }
+        if (19..<20.5).contains(f) { return ("Dinner time", orange) }
+        return ("Good time to call", green)
     }
-    let toStart = (p.start - f + 24).truncatingRemainder(dividingBy: 24)
-    let sinceEnd = (f - p.end + 24).truncatingRemainder(dividingBy: 24)
-    if toStart <= 1.5 { return ("Waking up", hex("#FFC46B")) }
-    if sinceEnd < 1.5 { return ("Winding down", hex("#C9A7FF")) }
-    return ("Asleep", hex("#9AA3C7"))
 }

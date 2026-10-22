@@ -25,6 +25,11 @@ targets:
         CODE_SIGN_IDENTITY: "-"
         ENABLE_APP_SANDBOX: YES
         ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
+        ENABLE_RESOURCE_ACCESS_CALENDARS: YES
+        ENABLE_RESOURCE_ACCESS_CONTACTS: YES
+        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: "Skies reads your holiday calendars to show public holidays where your people live."
+        INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription: "Skies adds the calls and meetings you plan to your calendar."
+        INFOPLIST_KEY_NSContactsUsageDescription: "Skies shows the photo and birthday of contacts you link to a city."
     scheme:
       testTargets: [SkiesTests]
   SkiesTests:

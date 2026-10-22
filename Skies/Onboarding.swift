@@ -1,8 +1,6 @@
 import SwiftUI
 import MapKit
-#if os(iOS)
-import ContactsUI
-#endif
+import Contacts
 
 /// First run: welcome on a live sky, where you are, who you talk to, what to call them.
 /// Learning the gestures happens afterwards, on the real screen (SkiesView's coaching).
@@ -15,7 +13,8 @@ struct Onboarding: View {
     @State private var you = Onboarding.guessYou()
     @State private var others: [Person] = []
     @State private var search: Search?
-    @State private var pendingLabel = ""
+    /// A contact with no usable address waits here while you search for their city.
+    @State private var pendingContact: Person.Contact?
     @State private var pickingContact = false
     @State private var began = Date.now
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -24,8 +23,9 @@ struct Onboarding: View {
 
     var body: some View {
         ZStack {
-            TimelineView(.animation(minimumInterval: step == 0 && !reduceMotion ? nil : 1)) { ctx in
-                SkyBackground(person: you, minutes: skyMinutes(ctx.date)).ignoresSafeArea()
+            TimelineView(.animation(minimumInterval: reduceMotion ? 1 : step == 0 ? nil : 1.0 / 30)) { ctx in
+                SkyBackground(person: you, minutes: skyMinutes(ctx.date),
+                              time: reduceMotion ? 0 : ctx.date.timeIntervalSinceReferenceDate, flare: 1).ignoresSafeArea()
             }
 
             VStack(spacing: 0) {
@@ -73,20 +73,18 @@ struct Onboarding: View {
         .preferredColorScheme(.dark)
         .sheet(item: $search) { kind in
             NavigationStack {
-                CitySearch { city, tz, coord in
-                    let p = Person(city: city, label: kind == .you ? "You" : pendingLabel, tzID: tz.identifier,
-                                   lat: coord.latitude, lon: coord.longitude, isHome: kind == .you)
+                CitySearch { place in
+                    var p = Person(place: place, label: kind == .you ? "You" : pendingContact?.firstName ?? "", isHome: kind == .you)
+                    p.contact = kind == .you ? nil : pendingContact
                     if kind == .you { you = p } else { add(p) }
-                    pendingLabel = ""
+                    pendingContact = nil
                 }
             }
             #if os(macOS)
             .frame(minWidth: 380, minHeight: 460)
             #endif
         }
-        #if os(iOS)
         .background(ContactPicker(isPresented: $pickingContact) { contact in Task { await addContact(contact) } })
-        #endif
         .task { await placeYou() }
     }
 
@@ -157,13 +155,11 @@ struct Onboarding: View {
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: Capsule())
-                    #if os(iOS)
                     Button { pickingContact = true } label: {
                         Label("From Contacts", systemImage: "person.crop.circle").font(sf(15, .semibold)).frame(maxWidth: .infinity).frame(height: 44)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: Capsule())
-                    #endif
                 }
                 .padding(.horizontal, 24).padding(.top, 8)
             }
@@ -229,7 +225,7 @@ struct Onboarding: View {
     private func add(_ p: Person) {
         var p = p
         p.id = UUID()
-        p.days = Set(0..<7)
+        p.applyPreset(p.relation)
         others.append(p)
     }
 
@@ -255,22 +251,25 @@ struct Onboarding: View {
         guard let item = await findPlace(you.city), item.timeZone?.identifier == you.tzID else { return }
         you.lat = item.location.coordinate.latitude
         you.lon = item.location.coordinate.longitude
+        you.region = item.addressRepresentations?.region?.identifier
     }
 
-    #if os(iOS)
+    /// A contact's first address picks their city; with no address, you search for it and the contact rides along.
     private func addContact(_ c: CNContact) async {
-        let name = [c.givenName, c.familyName].first { !$0.isEmpty } ?? c.organizationName
-        guard let address = c.postalAddresses.first?.value,
+        let contact = Person.Contact(c)
+        let address = c.isKeyAvailable(CNContactPostalAddressesKey) ? c.postalAddresses.first?.value : nil
+        guard let address,
               let item = await findPlace(CNPostalAddressFormatter.string(from: address, style: .mailingAddress)),
-              let tz = item.timeZone else {
-            pendingLabel = name
+              let place = Place(item) else {
+            pendingContact = contact
             search = .add
             return
         }
-        add(Person(city: cityName(item), label: name, tzID: tz.identifier,
-                   lat: item.location.coordinate.latitude, lon: item.location.coordinate.longitude))
+        var p = Person(place: place, label: contact.firstName)
+        p.region = p.region ?? contactRegion(c)
+        p.contact = contact
+        add(p)
     }
-    #endif
 
     static let suggestions: [Person] = [
         Person(city: "London", label: "", tzID: "Europe/London", lat: 51.507, lon: -0.128),
@@ -329,6 +328,7 @@ private struct NameCard: View {
             TextField("Who's in \(person.city)?", text: $person.label)
                 .font(sf(22, .semibold))
                 .textFieldStyle(.plain)
+                .onChange(of: person.label) { old, _ in person.follow(from: .infer(old, isHome: false)) }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(Self.names, id: \.self) { n in
@@ -359,38 +359,6 @@ private struct NameCard: View {
     }
 }
 
-#if os(iOS)
-/// The system contact picker runs out of process, so it needs no Contacts permission.
-struct ContactPicker: UIViewControllerRepresentable {
-    @Binding var isPresented: Bool
-    let onPick: (CNContact) -> Void
-
-    func makeUIViewController(context: Context) -> UIViewController { UIViewController() }
-
-    func updateUIViewController(_ host: UIViewController, context: Context) {
-        context.coordinator.parent = self
-        guard isPresented, host.presentedViewController == nil else { return }
-        let picker = CNContactPickerViewController()
-        picker.delegate = context.coordinator
-        picker.displayedPropertyKeys = [CNContactPostalAddressesKey]
-        DispatchQueue.main.async { host.present(picker, animated: true) }
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-    final class Coordinator: NSObject, CNContactPickerDelegate {
-        var parent: ContactPicker
-        init(parent: ContactPicker) { self.parent = parent }
-
-        func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
-            parent.onPick(contact)
-            parent.isPresented = false
-        }
-
-        func contactPickerDidCancel(_ picker: CNContactPickerViewController) { parent.isPresented = false }
-    }
-}
-#endif
 
 func daysText(_ days: Set<Int>) -> String {
     switch days {

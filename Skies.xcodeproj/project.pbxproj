@@ -17,7 +17,9 @@
 		A2E88BC37953DBC3004D127E /* Planner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A97F7DEB4B5653CD60056 /* Planner.swift */; };
 		A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */; };
 		AD115356A2B66E96BC1A5FDE /* Sky.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A108332937315E09541041 /* Sky.swift */; };
+		EA42229AF8CA08E514565C68 /* Connect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C2C3D539A055F95B3FDD67 /* Connect.swift */; };
 		EAAD1F318C1988BD6C6E1441 /* SkyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02152E27B4A61FA235A856E /* SkyTests.swift */; };
+		F6EB8F75408876A5B70C0AE3 /* Moments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054A2BEE736248D2845A6FED /* Moments.swift */; };
 		FA6060891A86BE5DE8B00F4C /* SkiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90BFB6578061984319CE8089 /* SkiesView.swift */; };
 /* End PBXBuildFile section */
 
@@ -32,6 +34,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		01C2C3D539A055F95B3FDD67 /* Connect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connect.swift; sourceTree = "<group>"; };
+		054A2BEE736248D2845A6FED /* Moments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Moments.swift; sourceTree = "<group>"; };
 		25801DA363D61723BF70C5C8 /* Sky.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Sky.metal; sourceTree = "<group>"; };
 		2D4A97F7DEB4B5653CD60056 /* Planner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Planner.swift; sourceTree = "<group>"; };
 		5A563B8735224F0390D5C92A /* Skies.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Skies.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -69,6 +73,8 @@
 		7DCEFFBDC5AA73A70EDF2D13 /* Skies */ = {
 			isa = PBXGroup;
 			children = (
+				01C2C3D539A055F95B3FDD67 /* Connect.swift */,
+				054A2BEE736248D2845A6FED /* Moments.swift */,
 				720388C0964E7C61BCA36AB4 /* Onboarding.swift */,
 				85DD0311538D16C2950248E2 /* People.swift */,
 				D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */,
@@ -173,6 +179,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EA42229AF8CA08E514565C68 /* Connect.swift in Sources */,
+				F6EB8F75408876A5B70C0AE3 /* Moments.swift in Sources */,
 				4822B1FF64A0DF3FC290AA0A /* Onboarding.swift in Sources */,
 				64F99FDDFDD32B2892049C85 /* People.swift in Sources */,
 				9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */,
@@ -361,9 +369,14 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Skies;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads your holiday calendars to show public holidays where your people live.";
+				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Skies adds the calls and meetings you plan to your calendar.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Skies shows the photo and birthday of contacts you link to a city.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -392,9 +405,14 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Skies;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads your holiday calendars to show public holidays where your people live.";
+				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Skies adds the calls and meetings you plan to your calendar.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Skies shows the photo and birthday of contacts you link to a city.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;

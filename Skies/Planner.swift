@@ -1,4 +1,5 @@
 import SwiftUI
+import EventKit
 
 /// A Weather-style card: small symbol header, then content.
 struct Module<Content: View>: View {
@@ -21,6 +22,9 @@ struct Module<Content: View>: View {
 struct PlannerSheet: View {
     let people: People
     let model: Scrubber
+    @State private var eventStore = EKEventStore()
+    @State private var draft: EKEvent?
+    @State private var calendarResult: String?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -29,6 +33,7 @@ struct PlannerSheet: View {
                 let m = model.minutes(at: ctx.date), now = nowMinutes(ctx.date)
                 ScrollView {
                     VStack(spacing: 14) {
+                        moment(m: m)
                         week(m: m, now: now)
                         hours(m: m, now: now)
                         changes(now: now)
@@ -36,7 +41,7 @@ struct PlannerSheet: View {
                     .padding(16)
                 }
             }
-            .navigationTitle(people.everyone ? "Everyone" : people.team.map(\.city).joined(separator: ", "))
+            .navigationTitle(people.everyone ? "Everyone" : people.team.map(\.shortName).joined(separator: ", "))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -44,11 +49,54 @@ struct PlannerSheet: View {
         }
         .foregroundStyle(.white)
         .preferredColorScheme(.dark)
+        .alert(calendarResult ?? "", isPresented: Binding(get: { calendarResult != nil }, set: { if !$0 { calendarResult = nil } })) {
+            Button("OK") {}
+        }
         #if os(iOS)
+        .background(EventPresenter(event: $draft, store: eventStore))
         .presentationDetents([.medium, .large])
         .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         #else
         .frame(minWidth: 420, minHeight: 560)
+        #endif
+    }
+
+    // MARK: The chosen moment
+
+    /// What to do with the time you've landed on: put it in your calendar, or send it.
+    private func moment(m: Double) -> some View {
+        let h = Local(home.tz, snap(m))
+        let card = MomentCard(team: people.team, minutes: m, talk: people.mode == .personal)
+        return Module(title: "\(Calendar.current.weekdaySymbols[h.wd]) \(clock(h)) \(ampm(h.h))", icon: "clock.badge.checkmark") {
+            HStack(spacing: 10) {
+                Button { addToCalendar(at: m) } label: {
+                    Label("Add to Calendar", systemImage: "calendar.badge.plus")
+                        .font(sf(15, .semibold)).frame(maxWidth: .infinity).frame(height: 44)
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: Capsule())
+                ShareLink(item: card, subject: Text(card.talk ? "Let's talk" : "Let's meet"), message: Text(card.text),
+                          preview: SharePreview(card.text, image: Image(systemName: "sun.horizon.fill"))) {
+                    Label("Send", systemImage: "square.and.arrow.up")
+                        .font(sf(15, .semibold)).frame(maxWidth: .infinity).frame(height: 44)
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: Capsule())
+            }
+        }
+    }
+
+    /// Opens Apple's event editor on iPhone; on the Mac, saves straight to the default calendar and says so.
+    private func addToCalendar(at m: Double) {
+        let event = plannedEvent(eventStore, team: people.team, home: home, at: m, talk: people.mode == .personal)
+        #if os(iOS)
+        draft = event
+        #else
+        Task {
+            let saved = await saveEvent(event, in: eventStore)
+            calendarResult = saved ? "Added \u{201C}\(event.title ?? "")\u{201D} to Calendar"
+                                   : "Skies can't add events. Allow it in System Settings \u{203A} Privacy & Security \u{203A} Calendars."
+        }
         #endif
     }
 
@@ -59,7 +107,7 @@ struct PlannerSheet: View {
     private func week(m: Double, now: Double) -> some View {
         let today = dayStart(home.tz, now)
         let runs = people.runs(from: today)
-        return Module(title: "Free together this week", icon: "calendar") {
+        return Module(title: people.mode == .personal ? "Talking time this week" : "Free together this week", icon: "calendar") {
             VStack(spacing: 0) {
                 ForEach(0..<7, id: \.self) { k in
                     let start = dayStart(home.tz, today + Double(k) * 1440 + 720)
@@ -109,7 +157,7 @@ struct PlannerSheet: View {
                     ForEach(0..<24, id: \.self) { k in
                         let t = first + Double(k) * 60
                         let l = Local(home.tz, t)
-                        let free = people.team.filter { $0.free(Local($0.tz, t + 30)) }.count
+                        let free = people.team.filter { $0.free(Local($0.tz, t + 30), with: people.mode) }.count
                         let all = free == people.team.count
                         let up = sunPosition(home, t + 30).elev > 0
                         Button { model.springTo(t, response: 0.5) } label: {
