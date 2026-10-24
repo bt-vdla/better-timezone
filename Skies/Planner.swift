@@ -9,7 +9,7 @@ struct Module<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title.uppercased(), systemImage: icon)
-                .font(sf(12, .semibold)).tracking(0.4).opacity(0.6)
+                .sf(12, .semibold).tracking(0.4).opacity(0.6)
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -26,6 +26,10 @@ struct PlannerSheet: View {
     @State private var draft: EKEvent?
     @State private var calendarResult: String?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .callout) private var dayWidth = 92.0
+    @ScaledMetric(relativeTo: .subheadline) private var totalWidth = 56.0
+    @ScaledMetric(relativeTo: .footnote) private var hourWidth = 52.0
 
     var body: some View {
         NavigationStack {
@@ -68,17 +72,17 @@ struct PlannerSheet: View {
         let h = Local(home.tz, snap(m))
         let card = MomentCard(team: people.team, minutes: m, talk: people.mode == .personal)
         return Module(title: "\(Calendar.current.weekdaySymbols[h.wd]) \(clock(h)) \(ampm(h.h))", icon: "clock.badge.checkmark") {
-            HStack(spacing: 10) {
+            (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))) {
                 Button { addToCalendar(at: m) } label: {
                     Label("Add to Calendar", systemImage: "calendar.badge.plus")
-                        .font(sf(15, .semibold)).frame(maxWidth: .infinity).frame(height: 44)
+                        .sf(15, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.regular.interactive(), in: Capsule())
                 ShareLink(item: card, subject: Text(card.talk ? "Let's talk" : "Let's meet"), message: Text(card.text),
                           preview: SharePreview(card.text, image: Image(systemName: "sun.horizon.fill"))) {
                     Label("Send", systemImage: "square.and.arrow.up")
-                        .font(sf(15, .semibold)).frame(maxWidth: .infinity).frame(height: 44)
+                        .sf(15, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.regular.interactive(), in: Capsule())
@@ -120,17 +124,28 @@ struct PlannerSheet: View {
                     Button {
                         if let first = day.first { model.springTo(first.lowerBound, response: 0.5) }
                     } label: {
-                        HStack(spacing: 12) {
-                            Text(k == 0 ? "Today" : k == 1 ? "Tomorrow" : Calendar.current.weekdaySymbols[Local(home.tz, start + 720).wd])
-                                .font(sf(16, .medium)).frame(width: 92, alignment: .leading)
-                            RangeBar(start: start, runs: day,
-                                     now: k == 0 ? now : nil,
-                                     scrub: (start..<end).contains(m) ? m : nil)
-                            Text(total > 0 ? dur(total) : "—")
-                                .font(sf(14, .medium)).monospacedDigit().opacity(total > 0 ? 0.9 : 0.4)
-                                .frame(width: 56, alignment: .trailing)
+                        let name = Text(k == 0 ? "Today" : k == 1 ? "Tomorrow" : Calendar.current.weekdaySymbols[Local(home.tz, start + 720).wd])
+                            .sf(16, .medium)
+                        let bar = RangeBar(start: start, runs: day, now: k == 0 ? now : nil, scrub: (start..<end).contains(m) ? m : nil)
+                        let length = Text(total > 0 ? dur(total) : "—")
+                            .sf(14, .medium).monospacedDigit().opacity(total > 0 ? 0.9 : 0.4)
+                        // Weather's 10-day forecast stacks at accessibility sizes; so does this.
+                        Group {
+                            if typeSize.isAccessibilitySize {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack { name; Spacer(); length }
+                                    bar
+                                }
+                                .padding(.vertical, 10)
+                            } else {
+                                HStack(spacing: 12) {
+                                    name.frame(width: dayWidth, alignment: .leading)
+                                    bar
+                                    length.frame(width: totalWidth, alignment: .trailing)
+                                }
+                                .frame(minHeight: 44)
+                            }
                         }
-                        .frame(height: 44)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(PressScale(scale: 0.98))
@@ -138,11 +153,13 @@ struct PlannerSheet: View {
                     .accessibilityLabel(day.isEmpty ? "No shared time" : day.map { timeRange($0, home) }.joined(separator: ", "))
                     if k < 6 { Divider().opacity(0.4) }
                 }
-                HStack {
-                    ForEach(["12 AM", "6 AM", "12 PM", "6 PM"], id: \.self) { Text($0).frame(maxWidth: .infinity, alignment: .leading) }
+                if !typeSize.isAccessibilitySize {
+                    HStack {
+                        ForEach(["12 AM", "6 AM", "12 PM", "6 PM"], id: \.self) { Text($0).frame(maxWidth: .infinity, alignment: .leading) }
+                    }
+                    .font(.sf(10, .medium)).opacity(0.45)
+                    .padding(.leading, dayWidth + 12).padding(.trailing, totalWidth + 12).padding(.top, 6)
                 }
-                .font(sf(10, .medium)).opacity(0.45)
-                .padding(.leading, 104).padding(.trailing, 68).padding(.top, 6)
             }
         }
     }
@@ -162,13 +179,13 @@ struct PlannerSheet: View {
                         let up = sunPosition(home, t + 30).elev > 0
                         Button { model.springTo(t, response: 0.5) } label: {
                             VStack(spacing: 8) {
-                                Text(k == 0 ? "Now" : "\(h12(l.h)) \(ampm(l.h))").font(sf(13, .semibold))
+                                Text(k == 0 ? "Now" : "\(h12(l.h)) \(ampm(l.h))").sf(13, .semibold)
                                 Image(systemName: up ? "sun.max.fill" : "moon.stars.fill")
-                                    .symbolRenderingMode(.multicolor).font(sf(18, .regular)).frame(height: 22)
-                                Text("\(free)/\(people.team.count)").font(sf(13, .medium)).monospacedDigit()
+                                    .symbolRenderingMode(.multicolor).sf(18, .regular).frame(minHeight: 22)
+                                Text("\(free)/\(people.team.count)").sf(13, .medium).monospacedDigit()
                                     .foregroundStyle(all ? Color.mint : .white.opacity(0.6))
                             }
-                            .frame(width: 52).padding(.vertical, 10)
+                            .frame(width: hourWidth).padding(.vertical, 10)
                             .background(all ? Color.mint.opacity(0.16) : .clear, in: RoundedRectangle(cornerRadius: 14))
                         }
                         .buttonStyle(PressScale())
@@ -189,15 +206,16 @@ struct PlannerSheet: View {
                     ForEach(upcoming, id: \.person.id) { c in
                         let date = Date(timeIntervalSince1970: c.at * 60)
                             .formatted(Date.FormatStyle(timeZone: home.tz).weekday(.abbreviated).day().month(.abbreviated))
-                        HStack {
-                            Text(c.person.city).font(sf(15, .semibold))
-                            Spacer()
+                        let row = typeSize.row()
+                        row {
+                            Text(c.person.city).sf(15, .semibold)
+                            if !typeSize.isAccessibilitySize { Spacer() }
                             Text("\(date) · clocks go \(c.shift < 0 ? "back" : "forward") \(dur(Double(c.shift)))")
-                                .font(sf(14, .regular)).opacity(0.8)
+                                .sf(14, .regular).opacity(0.8)
                         }
                     }
                     if let note = clockNote(people, after: now) {
-                        Text(note).font(sf(13, .medium)).foregroundStyle(Color.sun)
+                        Text(note).sf(13, .medium).foregroundStyle(Color.sun)
                     }
                 }
             }

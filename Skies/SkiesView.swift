@@ -18,7 +18,53 @@ extension Animation {
     static func easeOutStrong(_ duration: Double) -> Animation { .timingCurve(0.23, 1, 0.32, 1, duration: duration) }
 }
 
-func sf(_ size: CGFloat, _ weight: Font.Weight) -> Font { .system(size: size, weight: weight) }
+extension Font {
+    /// SF Pro at a fixed size: for images, Canvas labels and glyphs inside fixed-size circles.
+    static func sf(_ size: CGFloat, _ weight: Font.Weight) -> Font { .system(size: size, weight: weight) }
+}
+
+extension Font.TextStyle {
+    /// The style whose default size is nearest, so each size grows at Apple's rate for it.
+    /// Big numerals land on .largeTitle, which grows least, so clocks stay on screen.
+    static func near(_ size: CGFloat) -> Self {
+        switch size {
+        case ..<11.5: .caption2
+        case ..<12.5: .caption
+        case ..<14: .footnote
+        case ..<15.5: .subheadline
+        case ..<16.5: .callout
+        case ..<19: .body
+        case ..<21: .title3
+        case ..<25: .title2
+        case ..<31: .title
+        default: .largeTitle
+        }
+    }
+}
+
+/// SF Pro that follows Dynamic Type: exactly `size` at the default text size.
+struct ScaledSF: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    private let weight: Font.Weight
+
+    init(_ size: CGFloat, _ weight: Font.Weight) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: .near(size))
+        self.weight = weight
+    }
+
+    func body(content: Content) -> some View { content.font(.system(size: size, weight: weight)) }
+}
+
+extension DynamicTypeSize {
+    /// Side by side, or stacked once text reaches accessibility sizes.
+    func row(spacing: CGFloat? = nil, stackSpacing: CGFloat = 2) -> AnyLayout {
+        isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: stackSpacing)) : AnyLayout(HStackLayout(spacing: spacing))
+    }
+}
+
+extension View {
+    func sf(_ size: CGFloat, _ weight: Font.Weight) -> some View { modifier(ScaledSF(size, weight)) }
+}
 
 /// Weather-style legibility for white type over a live sky.
 extension View {
@@ -55,13 +101,17 @@ struct SkiesView: View {
     @Environment(\.openURL) private var openURL
     @Namespace private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        // Stars twinkle, so a night sky anywhere keeps the clock running at 30 fps; otherwise once a second.
+        // Stars twinkle, so a night sky anywhere keeps the clock running at 60 fps; otherwise once a second.
         let twinkle = !reduceMotion && people.list.contains { sunPosition($0, nowMinutes()).elev < -6 }
-        TimelineView(.animation(minimumInterval: model.isMoving ? nil : twinkle ? 1.0 / 30 : 1)) { ctx in
+        TimelineView(.animation(minimumInterval: model.isMoving ? nil : twinkle ? 1.0 / 60 : 1)) { ctx in
             screen(m: model.minutes(at: ctx.date), now: nowMinutes(ctx.date),
                    time: reduceMotion ? 0 : ctx.date.timeIntervalSinceReferenceDate)
+                // ponytail: the glance screen can't scroll, so like widgets its type stops at the largest standard size;
+                // past that, six people's clocks stop fitting. Sheets, person pages and onboarding get the full range.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         }
         .contentShape(Rectangle())
         .gesture(
@@ -176,12 +226,12 @@ struct SkiesView: View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(when)
-                    .font(sf(34, .semibold)).tracking(-0.5).monospacedDigit()
+                    .sf(34, .semibold).tracking(-0.5).monospacedDigit()
                     .accessibilityAddTraits(.updatesFrequently)
                 // ponytail: String, not Text(_:format:), which swaps in the device time zone.
                 Text(Date(timeIntervalSince1970: m * 60)
                     .formatted(Date.FormatStyle(timeZone: home.tz).weekday(.wide).day().month(.wide)))
-                    .font(sf(15, .medium)).opacity(0.8)
+                    .sf(15, .medium).opacity(0.8)
             }
             .skyLegible()
             Spacer()
@@ -189,15 +239,15 @@ struct SkiesView: View {
                 HStack(spacing: 10) {
                     if showNow {
                         Button("Now", action: model.goNow)
-                            .font(sf(15, .semibold))
+                            .sf(15, .semibold)
                             .foregroundStyle(Color(hex: 0x1D1603))
-                            .padding(.horizontal, 16).frame(height: 40)
+                            .padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 40)
                             .glassEffect(.regular.tint(.sun).interactive(), in: Capsule())
                             .glassEffectID("now", in: glass)
                             .buttonStyle(.plain)
                     }
                     Button { sheet = .people } label: {
-                        Image(systemName: "person.2.fill").font(sf(15, .semibold)).frame(width: 40, height: 40)
+                        Image(systemName: "person.2.fill").font(.sf(15, .semibold)).frame(width: 40, height: 40)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: Circle())
@@ -223,17 +273,17 @@ struct SkiesView: View {
                     HStack(spacing: 10) {
                         Circle().fill(Color.mint).frame(width: 9, height: 9)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(ov.title).font(sf(16, .semibold)).monospacedDigit()
-                            Text(ov.subtitle).font(sf(12, .medium)).opacity(0.7)
+                            Text(ov.title).sf(16, .semibold).monospacedDigit()
+                            Text(ov.subtitle).sf(12, .medium).opacity(0.7)
                             if let note = ov.note {
                                 Label(note, systemImage: "clock.arrow.2.circlepath")
-                                    .font(sf(12, .medium)).foregroundStyle(Color.sun).padding(.top, 2)
+                                    .sf(12, .medium).foregroundStyle(Color.sun).padding(.top, 2)
                             }
                         }
-                        .lineLimit(1)
+                        .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
                         Spacer(minLength: 0)
                         if ov.target != nil {
-                            Image(systemName: "arrow.right").font(sf(13, .semibold)).opacity(0.6)
+                            Image(systemName: "arrow.right").sf(13, .semibold).opacity(0.6)
                         }
                     }
                     .contentShape(Rectangle())
@@ -243,14 +293,14 @@ struct SkiesView: View {
 
                 if !people.everyone {
                     Button { people.picked = [] } label: {
-                        Image(systemName: "xmark").font(sf(13, .bold)).frame(width: 30, height: 30)
+                        Image(systemName: "xmark").font(.sf(13, .bold)).frame(width: 30, height: 30)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: Circle())
                     .accessibilityLabel("Include everyone")
                 }
                 Button { sheet = .planner } label: {
-                    Image(systemName: "calendar").font(sf(14, .semibold)).frame(width: 30, height: 30)
+                    Image(systemName: "calendar").font(.sf(14, .semibold)).frame(width: 30, height: 30)
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.regular.interactive(), in: Circle())
@@ -280,9 +330,9 @@ struct SkiesView: View {
         let dragged = model.hintGone
         return Label(dragged ? "Now tap a city to plan with them" : dragHint,
                      systemImage: dragged ? "hand.tap" : "hand.draw")
-            .font(sf(14, .medium))
+            .sf(14, .medium)
             .symbolEffect(.wiggle, options: .repeat(.periodic(delay: 2)), isActive: !reduceMotion)
-            .padding(.horizontal, 16).frame(height: 36)
+            .padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 36)
             .glassEffect(.regular, in: Capsule())
             .id(dragged)
             .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -334,11 +384,13 @@ func timeRange(_ r: ClosedRange<Double>, _ home: Person) -> String {
 
 /// The first upcoming clock change in the next two weeks that actually changes the team's shared window.
 @MainActor func clockNote(_ people: People, after m: Double) -> String? {
-    let home = people.home, team = people.team
+    let home = people.home
+    // Read from the cached 8-day runs, clipped to the one day: this runs every frame while scrubbing.
     func shared(_ x: Double) -> Double {
-        freeRuns(team, from: dayStart(home.tz, x), slots: 96, mode: people.mode).reduce(0) { $0 + $1.upperBound - $1.lowerBound }
+        let d = dayStart(home.tz, x)
+        return people.runs(from: d).reduce(0) { $0 + max(0, min($1.upperBound, d + 1440) - max($1.lowerBound, d)) }
     }
-    for c in clockChanges(team, in: m...(m + 14 * 1440)) {
+    for c in clockChanges(people.team, in: m...(m + 14 * 1440)) {
         // Same weekday a week apart, so days off don't read as a clock-change effect.
         let before = shared(c.at + 1440 - 7 * 1440), after = shared(c.at + 1440)
         guard before != after else { continue }
@@ -374,9 +426,11 @@ struct SkyRow: View {
     var dimmed = false, picked = false, animateDigits = true
     var occasion: (icon: String, text: String)? = nil
     var time: Double = 0
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let (label, dot) = status(person, local)
+        // Every row keeps the same layout; at large sizes the city shrinks and the clock (fixed size) stays whole.
         ViewThatFits(in: .vertical) {
             content(label: label, dot: dot, compact: false)
             content(label: label, dot: dot, compact: true)
@@ -398,13 +452,14 @@ struct SkyRow: View {
     private func content(label: String, dot: RGB, compact: Bool) -> some View {
         HStack(alignment: .center, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
-            Avatar(person: person, size: compact ? 28 : 38).padding(.top, compact ? 0 : 3)
+            // One circle size in both layouts, so names line up whichever layout a row picks.
+            Avatar(person: person, size: 32).padding(.top, compact ? 0 : 3)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
-                    Text(person.city).font(sf(compact ? 18 : 22, .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                    Text(person.city).sf(compact ? 18 : 22, .semibold).lineLimit(1).minimumScaleFactor(0.5)
                     if picked {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(sf(compact ? 15 : 17, .semibold))
+                            .sf(compact ? 15 : 17, .semibold)
                             .transition(.scale(scale: 0.9).combined(with: .opacity))
                     }
                 }
@@ -420,12 +475,14 @@ struct SkyRow: View {
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: compact ? 0 : 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text(clock(local)).font(sf(compact ? 38 : 50, .light)).tracking(compact ? -0.6 : -1.2).monospacedDigit()
+                    // The clock is the point of the row: it never truncates; the city gives way instead.
+                    Text(clock(local)).sf(compact ? 38 : 50, .light).tracking(compact ? -0.6 : -1.2).monospacedDigit()
                         .contentTransition(.numericText(value: Double(local.h * 60 + local.m)))
                         .animation(animateDigits ? .easeOutStrong(0.25) : nil, value: local.m)
-                    Text(ampm(local.h)).font(sf(compact ? 13 : 15, .medium))
+                    Text(ampm(local.h)).sf(compact ? 13 : 15, .medium)
                 }
-                if !person.isHome { Text(relative).font(sf(12, .medium)).opacity(0.8) }
+                .fixedSize()
+                if !person.isHome { Text(relative).sf(12, .medium).opacity(0.8).minimumScaleFactor(0.75) }
             }
             .lineLimit(1)
         }
@@ -446,7 +503,7 @@ struct SkyRow: View {
                 Label(occasion.text, systemImage: occasion.icon).labelStyle(TightLabel()).foregroundStyle(Color.sun)
             }
         }
-        .font(sf(compact ? 12 : 14, .medium)).opacity(0.9).lineLimit(1).fixedSize()
+        .sf(compact ? 12 : 14, .medium).opacity(0.9).lineLimit(1).fixedSize()
     }
 
     private var relative: String {
@@ -486,7 +543,7 @@ struct Tape: View {
                     ctx.fill(Path(CGRect(x: xp - 0.75, y: 6, width: 1.5, height: mid ? 26 : 18)),
                              with: .color(.white.opacity(mid ? 1 : 0.55)))
                     let label = mid ? Calendar.current.shortWeekdaySymbols[l.wd] : "\(h12(l.h)) \(ampm(l.h))"
-                    ctx.draw(Text(label).font(sf(11, mid ? .bold : .medium)).foregroundStyle(.white.opacity(mid ? 1 : 0.6)),
+                    ctx.draw(Text(label).font(.sf(11, mid ? .bold : .medium)).foregroundStyle(.white.opacity(mid ? 1 : 0.6)),
                              at: CGPoint(x: xp, y: size.height - 3), anchor: .bottom)
                 } else {
                     ctx.fill(Path(CGRect(x: xp - 0.5, y: 6, width: 1, height: l.m == 30 ? 10 : 6)), with: .color(.white.opacity(0.28)))
@@ -498,7 +555,7 @@ struct Tape: View {
                 let xp = cx + (c.at - m) * pxPerMinute
                 ctx.fill(Path(CGRect(x: xp - 0.75, y: 2, width: 1.5, height: bandH - 2)), with: .color(.sun.opacity(0.9)))
                 let shift = c.shift > 0 ? "+\(dur(Double(c.shift)))" : "−\(dur(Double(c.shift)))"
-                ctx.draw(Text("\(c.person.city) \(shift)").font(sf(10, .semibold)).foregroundStyle(Color.sun),
+                ctx.draw(Text("\(c.person.city) \(shift)").font(.sf(10, .semibold)).foregroundStyle(Color.sun),
                          at: CGPoint(x: xp + 4, y: bandH / 2 + 8), anchor: .leading)
             }
 

@@ -28,12 +28,13 @@ struct PersonDetail: View {
     /// Called after "Plan with…" picks them, so whoever presented this can close.
     let onPlan: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         if let i = people.list.firstIndex(where: { $0.id == id }) {
             let p = people.list[i]
             let twinkle = !reduceMotion && sunPosition(p, nowMinutes()).elev < -6
-            TimelineView(.animation(minimumInterval: model.isMoving ? nil : twinkle ? 1.0 / 30 : 1)) { ctx in
+            TimelineView(.animation(minimumInterval: model.isMoving ? nil : twinkle ? 1.0 / 60 : 1)) { ctx in
                 let m = model.minutes(at: ctx.date)
                 ScrollView {
                     VStack(spacing: 14) {
@@ -48,7 +49,7 @@ struct PersonDetail: View {
                                 onPlan()
                             } label: {
                                 Label("Plan with \(p.shortName)", systemImage: "person.crop.circle.badge.checkmark")
-                                    .font(sf(17, .semibold)).frame(maxWidth: .infinity).frame(height: 50)
+                                    .sf(17, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 50)
                             }
                             .buttonStyle(.plain)
                             .glassEffect(.regular.tint(.mint.opacity(0.4)).interactive(), in: Capsule())
@@ -79,13 +80,14 @@ struct PersonDetail: View {
         let rel = p.isHome ? "Your time" : diff == 0 ? "Same time as you" : "\(dur(diff)) \(diff < 0 ? "behind" : "ahead of") you"
         return VStack(spacing: 2) {
             Avatar(person: p, size: 84).padding(.bottom, 10)
-            Text(p.city).font(sf(32, .semibold))
-            if !p.label.isEmpty { Text(p.label).font(sf(17, .medium)).opacity(0.8) }
+            Text(p.city).sf(32, .semibold)
+            if !p.label.isEmpty { Text(p.label).sf(17, .medium).opacity(0.8) }
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(clock(l)).font(sf(96, .thin)).tracking(-3).monospacedDigit()
-                Text(ampm(l.h)).font(sf(26, .light))
+                Text(clock(l)).sf(96, .thin).tracking(-3).monospacedDigit()
+                Text(ampm(l.h)).sf(26, .light)
             }
-            Text("\(status(p, l).0) · \(rel)").font(sf(17, .medium))
+            .lineLimit(1).minimumScaleFactor(0.5)
+            Text("\(status(p, l).0) · \(rel)").sf(17, .medium)
         }
         .skyLegible()
         .padding(.top, 36).padding(.bottom, 20)
@@ -104,18 +106,18 @@ struct PersonDetail: View {
                 if !p.isHome {
                     Text(runs.isEmpty ? "No shared \(talk ? "talking" : "working") time this day"
                          : "\(talk ? "Best to talk" : "Overlap") \(runs.map { timeRange($0, home) }.joined(separator: ", "))")
-                        .font(sf(17, .semibold))
+                        .sf(17, .semibold)
                 }
                 DayLanes(home: home, person: p, start: start, now: nowMinutes(), scrub: m, runs: runs)
                     .frame(height: p.isHome ? 44 : 78)
-                HStack(spacing: 14) {
+                let legends = typeSize.row(spacing: 14)
+                legends {
                     legend(.mint, "Free")
                     legend(Color(hex: 0xFFC46B), "Busy")
                     legend(.white.opacity(0.25), "Off")
-                    Spacer()
                 }
                 Text("\(p.isHome ? "You're" : "They're") free \(hourText(p.start))–\(hourText(p.end)) \(p.isHome ? "your" : "their") time, \(daysText(p.days)).")
-                    .font(sf(13, .regular)).opacity(0.7)
+                    .sf(13, .regular).opacity(0.7)
             }
         }
     }
@@ -123,7 +125,7 @@ struct PersonDetail: View {
     private func legend(_ color: Color, _ text: String) -> some View {
         HStack(spacing: 5) {
             RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 12, height: 6)
-            Text(text).font(sf(12, .medium)).opacity(0.75)
+            Text(text).sf(12, .medium).opacity(0.75)
         }
     }
 
@@ -143,30 +145,32 @@ struct PersonDetail: View {
         let shared = sharedDaylight(home, p, from: start)
         return Module(title: "Sunrise and sunset", icon: "sunrise.fill") {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
+                let big = typeSize.isAccessibilitySize
+                let times = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+                times {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(hourText(s.rise)).font(sf(28, .regular))
-                        Text(p.isHome ? "Sunrise" : "Sunrise · \(yours(rise)) yours").font(sf(13, .medium)).opacity(0.65)
+                        Text(hourText(s.rise)).sf(28, .regular)
+                        Text(p.isHome ? "Sunrise" : "Sunrise · \(yours(rise)) yours").sf(13, .medium).opacity(0.65)
                     }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(hourText(s.set)).font(sf(28, .regular))
-                        Text(p.isHome ? "Sunset" : "Sunset · \(yours(set)) yours").font(sf(13, .medium)).opacity(0.65)
+                    if !big { Spacer() }
+                    VStack(alignment: big ? .leading : .trailing, spacing: 2) {
+                        Text(hourText(s.set)).sf(28, .regular)
+                        Text(p.isHome ? "Sunset" : "Sunset · \(yours(set)) yours").sf(13, .medium).opacity(0.65)
                     }
                 }
                 SunCurves(home: home, person: p, dayStart: start, now: m).frame(height: 84)
                 if !p.isHome {
-                    HStack(spacing: 14) {
+                    let legends = typeSize.row(spacing: 14)
+                    legends {
                         legend(.white, p.shortName)
                         legend(.white.opacity(0.35), "You")
                         legend(Color.sun.opacity(0.35), "Both in daylight")
-                        Spacer()
                     }
                 }
                 Text(p.isHome ? "\(Int(theirDay))h \(Int((theirDay - Double(Int(theirDay))) * 60))m of daylight"
                      : shared.isEmpty ? "You never share daylight today."
                      : "Daylight together \(shared.map { timeRange($0, home) }.joined(separator: ", ")). \(abs(gap) < 1.0 / 6 ? "About the same day length as you." : "\(dur(abs(gap) * 60)) \(gap > 0 ? "more" : "less") daylight than you.")")
-                    .font(sf(13, .medium)).opacity(0.75)
+                    .sf(13, .medium).opacity(0.75)
             }
         }
     }
@@ -197,30 +201,31 @@ struct PersonDetail: View {
                     // A birthday is a calendar date, not a moment: format it in GMT so it can't slip a day.
                     Label("Birthday \(date.map { $0.formatted(Date.FormatStyle(timeZone: .gmt).day().month(.wide)) } ?? "")",
                           systemImage: "birthday.cake.fill")
-                        .font(sf(16, .medium))
+                        .sf(16, .medium)
                 }
                 if let country {
                     if !holidays.granted {
                         Text("See public holidays in \(country) from the holiday calendars in your Calendar app.")
-                            .font(sf(15, .regular)).opacity(0.85)
+                            .sf(15, .regular).opacity(0.85)
                         Button("Show holidays") { Task { await holidays.enable() } }
-                            .font(sf(15, .semibold)).padding(.horizontal, 16).frame(height: 38)
+                            .sf(15, .semibold).padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 38)
                             .buttonStyle(.plain)
                             .glassEffect(.regular.interactive(), in: Capsule())
                     } else if holidays.covers(p) {
                         ForEach(holidays.upcoming(p, from: l), id: \.day) { h in
-                            HStack {
-                                Text(h.title).font(sf(15, .medium))
-                                Spacer()
-                                Text(holidayDate(h.day)).font(sf(14, .regular)).opacity(0.75)
+                            let row = typeSize.row()
+                            row {
+                                Text(h.title).sf(15, .medium)
+                                if !typeSize.isAccessibilitySize { Spacer() }
+                                Text(holidayDate(h.day)).sf(14, .regular).opacity(0.75)
                             }
                         }
                     } else {
                         Text("No holiday calendar for \(country) yet. Add one in Calendar \u{203A} Holidays and it shows up here.")
-                            .font(sf(15, .regular)).opacity(0.85)
+                            .sf(15, .regular).opacity(0.85)
                     }
                 } else {
-                    Text("Holidays appear once Skies knows which country \(p.city) is in.").font(sf(15, .regular)).opacity(0.85)
+                    Text("Holidays appear once Skies knows which country \(p.city) is in.").sf(15, .regular).opacity(0.85)
                 }
             }
         }
@@ -251,7 +256,7 @@ struct DayLanes: View {
                 let mode: Person.Kind? = person.isHome ? nil : person.relation
                 for (row, (name, who)) in rows.enumerated() {
                     let y = Double(row) * (barH + gap)
-                    ctx.draw(Text(name).font(sf(12, .semibold)).foregroundStyle(.white.opacity(0.8)),
+                    ctx.draw(Text(name).font(.sf(12, .semibold)).foregroundStyle(.white.opacity(0.8)),
                              at: CGPoint(x: 0, y: y + barH / 2), anchor: .leading)
                     // Free, busy (inside their hours but at work), or off; consecutive slots merged into one bar each,
                     // so translucent pieces never overlap into stripes.
@@ -284,7 +289,7 @@ struct DayLanes: View {
             HStack(spacing: 0) {
                 Spacer().frame(width: 54)
                 ForEach(["12 AM", "6 AM", "12 PM", "6 PM"], id: \.self) {
-                    Text($0).font(sf(10, .medium)).opacity(0.5).frame(maxWidth: .infinity, alignment: .leading)
+                    Text($0).font(.sf(10, .medium)).opacity(0.5).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }

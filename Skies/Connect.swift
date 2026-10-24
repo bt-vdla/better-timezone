@@ -47,12 +47,12 @@ struct Avatar: View {
             if let data = person.contact?.photo, let image = platformImage(data) {
                 image.resizable().scaledToFill()
             } else if let c = person.contact {
-                Text(c.initials).font(sf(size * 0.4, .semibold)).foregroundStyle(.white)
+                Text(c.initials).font(.sf(size * 0.4, .semibold)).foregroundStyle(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.white.opacity(0.22))
             } else {
                 Image(systemName: person.isHome ? "location.fill" : person.relation.symbol)
-                    .font(sf(size * 0.36, .semibold)).foregroundStyle(.white.opacity(0.9))
+                    .font(.sf(size * 0.36, .semibold)).foregroundStyle(.white.opacity(0.9))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.white.opacity(0.14))
             }
@@ -148,6 +148,7 @@ extension Person.Contact {
 struct ReachModule: View {
     @Binding var contact: Person.Contact
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         Module(title: "Reach \(contact.firstName)", icon: "phone.fill") {
@@ -155,15 +156,15 @@ struct ReachModule: View {
                 if let fav = contact.preferred {
                     Button { go(fav) } label: {
                         HStack(spacing: 14) {
-                            Image(systemName: fav.method.icon).font(sf(20, .semibold)).frame(width: 28)
+                            Image(systemName: fav.method.icon).sf(20, .semibold).frame(width: 28)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(fav.method.title).font(sf(17, .semibold))
-                                Text("\(contact.label(for: fav.value)) · \(fav.value)").font(sf(13, .regular)).opacity(0.75)
+                                Text(fav.method.title).sf(17, .semibold)
+                                Text("\(contact.label(for: fav.value)) · \(fav.value)").sf(13, .regular).opacity(0.75)
                             }
                             Spacer()
                             if contact.favourite != nil { Image(systemName: "star.fill").foregroundStyle(Color.sun) }
                         }
-                        .padding(.horizontal, 16).frame(height: 60)
+                        .padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 60)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -176,29 +177,33 @@ struct ReachModule: View {
                     row(label: "email", value: email, methods: Channel.Method.forEmail)
                 }
                 Text("Touch and hold any of these to make it the favourite.")
-                    .font(sf(12, .regular)).opacity(0.6)
+                    .sf(12, .regular).opacity(0.6)
             }
         }
     }
 
     private func row(label: String, value: String, methods: [Channel.Method]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(label.capitalized).font(sf(13, .medium)).opacity(0.6)
-                Text(value).font(sf(15, .regular)).lineLimit(1)
+        let line = typeSize.row(spacing: 8)
+        return VStack(alignment: .leading, spacing: 8) {
+            line {
+                Text(label.capitalized).sf(13, .medium).opacity(0.6)
+                Text(value).sf(15, .regular).lineLimit(1).minimumScaleFactor(0.7)
             }
             HStack(spacing: 8) {
                 ForEach(methods, id: \.self) { m in
                     let channel = Channel(method: m, value: value)
                     Button { go(channel) } label: {
                         VStack(spacing: 3) {
-                            Image(systemName: m.icon).font(sf(15, .semibold))
-                            Text(m.short).font(sf(10, .medium)).opacity(0.75).lineLimit(1)
+                            Image(systemName: m.icon).sf(15, .semibold)
+                            // Like Phone's contact card: icons only at accessibility sizes; touch and hold shows the name large.
+                            if !typeSize.isAccessibilitySize {
+                                Text(m.short).sf(10, .medium).opacity(0.75).lineLimit(1).minimumScaleFactor(0.7)
+                            }
                         }
-                        .frame(maxWidth: .infinity).frame(height: 50)
+                        .padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 50)
                             .overlay(alignment: .topTrailing) {
                                 if contact.favourite == channel {
-                                    Image(systemName: "star.fill").font(sf(9, .bold)).foregroundStyle(Color.sun).padding(5)
+                                    Image(systemName: "star.fill").sf(9, .bold).foregroundStyle(Color.sun).padding(5)
                                 }
                             }
                     }
@@ -212,6 +217,7 @@ struct ReachModule: View {
                         }
                     }
                     .accessibilityLabel("\(m.title), \(label)")
+                    .accessibilityShowsLargeContentViewer { Label(m.title, systemImage: m.icon) }
                     .accessibilityAction(named: "Make favourite") { contact.favourite = channel }
                 }
             }

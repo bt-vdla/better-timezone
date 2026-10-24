@@ -18,12 +18,13 @@ struct Onboarding: View {
     @State private var pickingContact = false
     @State private var began = Date.now
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     enum Search: Identifiable { case you, add; var id: Self { self } }
 
     var body: some View {
         ZStack {
-            TimelineView(.animation(minimumInterval: reduceMotion ? 1 : step == 0 ? nil : 1.0 / 30)) { ctx in
+            TimelineView(.animation(minimumInterval: reduceMotion ? 1 : step == 0 ? nil : 1.0 / 60)) { ctx in
                 SkyBackground(person: you, minutes: skyMinutes(ctx.date),
                               time: reduceMotion ? 0 : ctx.date.timeIntervalSinceReferenceDate, flare: 1).ignoresSafeArea()
             }
@@ -32,20 +33,13 @@ struct Onboarding: View {
                 HStack {
                     Spacer()
                     if step > 0 {
-                        Button("Skip", action: done).font(sf(15, .medium)).buttonStyle(.plain).opacity(0.8)
+                        Button("Skip", action: done).sf(15, .medium).buttonStyle(.plain).opacity(0.8)
                     }
                 }
-                .frame(height: 44)
+                .frame(minHeight: 44)
                 .padding(.horizontal, 24)
 
-                Group {
-                    switch step {
-                    case 0: welcome
-                    case 1: whereAreYou
-                    case 2: whoDoYouTalkTo
-                    default: names
-                    }
-                }
+                Group { page }
                 .id(step)
                 .transition(stepTransition)
                 .frame(maxHeight: .infinity)
@@ -53,14 +47,14 @@ struct Onboarding: View {
                 HStack(spacing: 12) {
                     if step > 0 {
                         Button { go(-1) } label: {
-                            Image(systemName: "chevron.left").font(sf(17, .semibold)).frame(width: 52, height: 52)
+                            Image(systemName: "chevron.left").font(.sf(17, .semibold)).frame(width: 52, height: 52)
                         }
                         .buttonStyle(.plain)
                         .glassEffect(.regular.interactive(), in: Circle())
                         .accessibilityLabel("Back")
                     }
                     Button(action: next) {
-                        Text(primaryTitle).font(sf(17, .semibold)).frame(maxWidth: .infinity).frame(height: 52)
+                        Text(primaryTitle).sf(17, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 52)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: Capsule())
@@ -90,14 +84,31 @@ struct Onboarding: View {
 
     // MARK: Steps
 
+    @ViewBuilder private var page: some View {
+        switch step {
+        case 0: scrollsIfNeeded(welcome)
+        case 1: scrollsIfNeeded(whereAreYou)
+        case 2: whoDoYouTalkTo
+        default: names
+        }
+    }
+
+    /// At large text sizes a page that no longer fits scrolls instead of clipping.
+    private func scrollsIfNeeded(_ page: some View) -> some View {
+        ViewThatFits(in: .vertical) {
+            page
+            ScrollView { page }.scrollBounceBehavior(.basedOnSize)
+        }
+    }
+
     private var welcome: some View {
         VStack(spacing: 12) {
             Spacer()
-            Text("Skies").font(sf(64, .semibold)).tracking(-1.5)
-            Text("See everyone's day at once.").font(sf(22, .regular)).opacity(0.9)
+            Text("Skies").sf(64, .semibold).tracking(-1.5)
+            Text("See everyone's day at once.").sf(22, .regular).opacity(0.9)
             Spacer()
             Text("A sky for every city you care about: real sunrises, real time zones, and the hours you can all talk.")
-                .font(sf(15, .regular)).multilineTextAlignment(.center).opacity(0.8)
+                .sf(15, .regular).multilineTextAlignment(.center).opacity(0.8)
                 .padding(.horizontal, 32).padding(.bottom, 24)
         }
         .skyLegible()
@@ -107,17 +118,19 @@ struct Onboarding: View {
         VStack(spacing: 20) {
             title("Where are you?", "Your sky sits at the top. Everyone else is measured from it.")
             Spacer()
-            HStack {
+            let card = typeSize.row(stackSpacing: 12)
+            card {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(you.city).font(sf(28, .semibold))
-                    Text(you.tz.localizedName(for: .generic, locale: .current) ?? you.tzID).font(sf(15, .regular)).opacity(0.75)
+                    Text(you.city).sf(28, .semibold)
+                    Text(you.tz.localizedName(for: .generic, locale: .current) ?? you.tzID).sf(15, .regular).opacity(0.75)
                 }
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 Button("Change") { search = .you }
-                    .font(sf(15, .semibold)).padding(.horizontal, 16).frame(height: 36)
+                    .sf(15, .semibold).padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 36)
                     .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: Capsule())
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
             .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 26))
             .padding(.horizontal, 24)
@@ -138,10 +151,10 @@ struct Onboarding: View {
                 .animation(reduceMotion ? .easeOutStrong(0.2) : .spring(response: 0.4, dampingFraction: 1), value: others.map(\.id))
                 .padding(.horizontal, 24)
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 8) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: typeSize.isAccessibilitySize ? 280 : 120), spacing: 8)], spacing: 8) {
                     ForEach(Onboarding.suggestions.filter { s in !others.contains { $0.tzID == s.tzID && $0.city == s.city } && s.tzID != you.tzID }) { s in
                         Button { add(s) } label: {
-                            Label(s.city, systemImage: "plus").font(sf(15, .medium)).frame(maxWidth: .infinity).frame(height: 40)
+                            Label(s.city, systemImage: "plus").sf(15, .medium).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 40)
                         }
                         .buttonStyle(.plain)
                         .glassEffect(.regular.interactive(), in: Capsule())
@@ -149,14 +162,15 @@ struct Onboarding: View {
                 }
                 .padding(.horizontal, 24).padding(.top, 8)
 
-                HStack(spacing: 10) {
+                let actions = typeSize.row(spacing: 10, stackSpacing: 10)
+                actions {
                     Button { search = .add } label: {
-                        Label("Search", systemImage: "magnifyingglass").font(sf(15, .semibold)).frame(maxWidth: .infinity).frame(height: 44)
+                        Label("Search", systemImage: "magnifyingglass").sf(15, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 44)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: Capsule())
                     Button { pickingContact = true } label: {
-                        Label("From Contacts", systemImage: "person.crop.circle").font(sf(15, .semibold)).frame(maxWidth: .infinity).frame(height: 44)
+                        Label("From Contacts", systemImage: "person.crop.circle").sf(15, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 44)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: Capsule())
@@ -182,10 +196,11 @@ struct Onboarding: View {
 
     private func title(_ t: String, _ sub: String) -> some View {
         VStack(spacing: 8) {
-            Text(t).font(sf(32, .semibold)).tracking(-0.5)
-            Text(sub).font(sf(16, .regular)).opacity(0.85)
+            Text(t).sf(32, .semibold).tracking(-0.5)
+            Text(sub).sf(16, .regular).opacity(0.85)
         }
         .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 28).padding(.top, 12)
         .skyLegible()
     }
@@ -289,26 +304,29 @@ struct Onboarding: View {
 private struct MiniBand: View {
     let person: Person
     let remove: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { ctx in
             let m = nowMinutes(ctx.date), l = Local(person.tz, m)
+            let time = Text("\(clock(l)) \(ampm(l.h))").sf(22, .light).monospacedDigit()
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(person.city).font(sf(18, .semibold))
-                    if !person.label.isEmpty { Text(person.label).font(sf(13, .medium)).opacity(0.8) }
+                    Text(person.city).sf(18, .semibold)
+                    if !person.label.isEmpty { Text(person.label).sf(13, .medium).opacity(0.8) }
+                    if typeSize.isAccessibilitySize { time }
                 }
                 Spacer()
-                Text("\(clock(l)) \(ampm(l.h))").font(sf(22, .light)).monospacedDigit()
+                if !typeSize.isAccessibilitySize { time }
                 Button(action: remove) {
-                    Image(systemName: "xmark").font(sf(12, .bold)).frame(width: 28, height: 28)
+                    Image(systemName: "xmark").font(.sf(12, .bold)).frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.regular.interactive(), in: Circle())
                 .accessibilityLabel("Remove \(person.city)")
             }
             .skyLegible()
-            .padding(.horizontal, 16).frame(height: 64)
+            .padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 64)
             .background { SkyBackground(person: person, minutes: m) }
             .clipShape(RoundedRectangle(cornerRadius: 18))
         }
@@ -324,16 +342,16 @@ private struct NameCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(person.city).font(sf(15, .semibold)).opacity(0.75)
+            Text(person.city).sf(15, .semibold).opacity(0.75)
             TextField("Who's in \(person.city)?", text: $person.label)
-                .font(sf(22, .semibold))
+                .sf(22, .semibold)
                 .textFieldStyle(.plain)
                 .onChange(of: person.label) { old, _ in person.follow(from: .infer(old, isHome: false)) }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(Self.names, id: \.self) { n in
                         Button(n) { person.label = n }
-                            .font(sf(14, .medium)).padding(.horizontal, 12).frame(height: 32)
+                            .sf(14, .medium).padding(.horizontal, 12).padding(.vertical, 6).frame(minHeight: 32)
                             .buttonStyle(.plain)
                             .glassEffect(person.label == n ? .regular.tint(.white.opacity(0.3)).interactive() : .regular.interactive(), in: Capsule())
                     }
@@ -352,7 +370,7 @@ private struct NameCard: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             Text("\(hourText(person.start))–\(hourText(person.end)), \(daysText(person.days))")
-                .font(sf(13, .regular)).opacity(0.7)
+                .sf(13, .regular).opacity(0.7)
         }
         .padding(18)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))

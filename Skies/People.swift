@@ -53,14 +53,22 @@ struct Person: Codable, Identifiable, Hashable {
         /// "Design team" reads as work; "Mom", "Friends" or a first name as personal. Your own row defaults to work.
         // ponytail: keyword match; let people override it in the editor rather than growing this list forever.
         static func infer(_ label: String, isHome: Bool) -> Kind {
+            keyword(label) ?? (isHome ? .work : .personal)
+        }
+
+        private static let keywords = Mutex<[String: Kind?]>([:])
+
+        /// Memoized: availability asks every 15-minute slot, and lowercasing plus matching costs microseconds each time.
+        private static func keyword(_ label: String) -> Kind? {
+            if let hit = keywords.withLock({ $0[label] }) { return hit }
             let l = label.lowercased()
             let work = ["team", "client", "work", "office", "colleague", "investor", "review", "partners", "site",
                         "manager", "boss", "company", "vendor", "customer", "project", "design", "board", "studio"]
-            if work.contains(where: l.contains) { return .work }
             let personal = ["family", "friend", "partner", "mom", "mum", "dad", "brother", "sister", "wife", "husband",
                             "kids", "home", "love", "grand", "cousin", "aunt", "uncle", "bae"]
-            if personal.contains(where: l.contains) { return .personal }
-            return isHome ? .work : .personal
+            let k: Kind? = work.contains(where: l.contains) ? .work : personal.contains(where: l.contains) ? .personal : nil
+            keywords.withLock { $0[label] = k }
+            return k
         }
     }
 
@@ -90,10 +98,15 @@ struct Person: Codable, Identifiable, Hashable {
     /// The days friends and family are probably at work. Where the official week runs six days (India, for one),
     /// the last of them is often a half day or off, so it doesn't count against talking time.
     var weekdays: Set<Int> {
+        let key = region ?? ""
+        if let known = Self.shortWeeks.withLock({ $0[key] }) { return known }
         let w = workdays
-        guard w.count > 5, let last = (0..<7).first(where: { w.contains($0) && !w.contains(($0 + 1) % 7) }) else { return w }
-        return w.subtracting([last])
+        let days = w.count > 5 ? (0..<7).first(where: { w.contains($0) && !w.contains(($0 + 1) % 7) }).map { w.subtracting([$0]) } ?? w : w
+        Self.shortWeeks.withLock { $0[key] = days }
+        return days
     }
+
+    private static let shortWeeks = Mutex<[String: Set<Int>]>([:])
 
     var workdays: Set<Int> { Person.workdays(region) }
 

@@ -162,26 +162,26 @@ struct MomentCardView: View {
         let m = snap(minutes)
         VStack(alignment: .leading, spacing: 0) {
             Text(talk ? "Let's talk" : "Let's meet")
-                .font(sf(26, .bold)).padding(.horizontal, 20).padding(.top, 22).padding(.bottom, 14)
+                .font(.sf(26, .bold)).padding(.horizontal, 20).padding(.top, 22).padding(.bottom, 14)
             ForEach(team) { p in
                 let l = Local(p.tz, m)
                 let sky = skyColors(sunPosition(p, m).elev)
                 HStack(spacing: 12) {
                     Avatar(person: p, size: 36)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(p.cardName).font(sf(18, .semibold))
-                        Text(p.city).font(sf(13, .medium)).opacity(0.8)
+                        Text(p.cardName).font(.sf(18, .semibold))
+                        Text(p.city).font(.sf(13, .medium)).opacity(0.8)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(clock(l)) \(ampm(l.h))").font(sf(26, .light)).monospacedDigit()
-                        Text(Calendar.current.weekdaySymbols[l.wd]).font(sf(13, .medium)).opacity(0.8)
+                        Text("\(clock(l)) \(ampm(l.h))").font(.sf(26, .light)).monospacedDigit()
+                        Text(Calendar.current.weekdaySymbols[l.wd]).font(.sf(13, .medium)).opacity(0.8)
                     }
                 }
                 .padding(.horizontal, 20).frame(height: 76)
                 .background(LinearGradient(colors: [Color(sky.zenith), Color(sky.horizon)], startPoint: .top, endPoint: .bottom))
             }
-            Text("Planned with Skies").font(sf(12, .medium)).opacity(0.6).padding(20)
+            Text("Planned with Skies").font(.sf(12, .medium)).opacity(0.6).padding(20)
         }
         .foregroundStyle(.white)
         .frame(width: 360)
