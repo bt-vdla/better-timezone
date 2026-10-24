@@ -8,6 +8,7 @@ struct PeopleSheet: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("onboarded") private var onboarded = true
     @AppStorage("coached") private var coached = true
+    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
 
     var body: some View {
         NavigationStack {
@@ -29,6 +30,14 @@ struct PeopleSheet: View {
                     }
                 } label: {
                     Label("Add a city", systemImage: "plus.circle.fill")
+                }
+
+                Section {
+                    Picker("Show people by", selection: $showBy) {
+                        ForEach(ShowBy.allCases) { Text($0.title).tag($0) }
+                    }
+                } footer: {
+                    Text("What each sky is labelled with across Skies. The other two show smaller, beside it.")
                 }
 
                 Section {
@@ -54,13 +63,14 @@ struct PeopleSheet: View {
 
 private struct PersonLabel: View {
     let person: Person
+    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
     var body: some View {
         HStack(spacing: 12) {
         Avatar(person: person, size: 34)
         VStack(alignment: .leading, spacing: 2) {
-            Text(person.city).font(.body.weight(.semibold))
-            Text([person.label, hoursText(person), person.tz.localizedName(for: .generic, locale: .current) ?? person.tzID]
-                .filter { !$0.isEmpty }.joined(separator: " · "))
+            Text(person.title(showBy)).font(.body.weight(.semibold))
+            Text(([person.name, person.code, person.city].filter { $0 != person.title(showBy) } + [hoursText(person)])
+                .joined(separator: " · "))
                 .font(.footnote).foregroundStyle(.secondary)
         }
         }
@@ -108,8 +118,16 @@ struct PersonEditor: View {
                 } label: {
                     LabeledContent("City", value: person.city)
                 }
+                LabeledContent("Short code") {
+                    TextField(Airports.nearest(lat: person.lat, lon: person.lon) ?? "Code", text: Binding(
+                        get: { person.codeOverride ?? "" },
+                        set: { person.codeOverride = String($0.uppercased().filter(\.isLetter).prefix(4)).nonEmpty }))
+                        .multilineTextAlignment(.trailing)
+                        .monospaced()
+                        .autocorrectionDisabled()
+                }
             } footer: {
-                Text(person.tz.localizedName(for: .generic, locale: .current) ?? person.tzID)
+                Text("\(person.tz.localizedName(for: .generic, locale: .current) ?? person.tzID). The short code shows beside their name; leave it empty to use the nearest airport.")
             }
 
             Section {
@@ -152,7 +170,7 @@ struct PersonEditor: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(person.label.isEmpty ? person.city : person.label)
+        .navigationTitle(person.name)
     }
 }
 

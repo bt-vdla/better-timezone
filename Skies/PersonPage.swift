@@ -28,6 +28,7 @@ struct PersonDetail: View {
     /// Called after "Plan with…" picks them, so whoever presented this can close.
     let onPlan: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -39,6 +40,14 @@ struct PersonDetail: View {
                 ScrollView {
                     VStack(spacing: 14) {
                         hero(p, m: m)
+                        #if os(macOS)
+                        NavigationLink { PersonEditor(person: $people.list[i]) } label: {
+                            Label("Edit \(p.name)", systemImage: "pencil")
+                                .font(.sf(14, .semibold)).padding(.horizontal, 16).frame(height: 34)
+                        }
+                        .buttonStyle(.plain)
+                        .glassEffect(.regular.interactive(), in: Capsule())
+                        #endif
                         if let contact = Binding($people.list[i].contact) { ReachModule(contact: contact) }
                         dayModule(p, m: m)
                         sunModule(p, m: m)
@@ -80,8 +89,8 @@ struct PersonDetail: View {
         let rel = p.isHome ? "Your time" : diff == 0 ? "Same time as you" : "\(dur(diff)) \(diff < 0 ? "behind" : "ahead of") you"
         return VStack(spacing: 2) {
             Avatar(person: p, size: 84).padding(.bottom, 10)
-            Text(p.city).sf(32, .semibold)
-            if !p.label.isEmpty { Text(p.label).sf(17, .medium).opacity(0.8) }
+            Text(p.title(showBy)).sf(32, .semibold)
+            Text([p.name, p.code, p.city].filter { $0 != p.title(showBy) }.joined(separator: " · ")).sf(17, .medium).opacity(0.8)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(clock(l)).sf(96, .thin).tracking(-3).monospacedDigit()
                 Text(ampm(l.h)).sf(26, .light)

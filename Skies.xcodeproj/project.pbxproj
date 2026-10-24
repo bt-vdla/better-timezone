@@ -12,11 +12,14 @@
 		5E73686C0862473F6D06557A /* Scrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = D29562640800AF3AEF507AA0 /* Scrubber.swift */; };
 		64F99FDDFDD32B2892049C85 /* People.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DD0311538D16C2950248E2 /* People.swift */; };
 		67F9A043D98F205CA87C74B8 /* PersonPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD2C742802CE6055413F352 /* PersonPage.swift */; };
+		7BC68B046F8F94D6F0BA51D5 /* airports.csv in Resources */ = {isa = PBXBuildFile; fileRef = 814677788BBC53D08024437E /* airports.csv */; };
+		83C6CAD3F3C8C0F6A921D36E /* Notch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905E5552CEB98ECDD990705D /* Notch.swift */; };
 		9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */; };
 		A287DA5E189072960DAABBAA /* Sky.metal in Sources */ = {isa = PBXBuildFile; fileRef = 25801DA363D61723BF70C5C8 /* Sky.metal */; };
 		A2E88BC37953DBC3004D127E /* Planner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A97F7DEB4B5653CD60056 /* Planner.swift */; };
 		A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */; };
 		AD115356A2B66E96BC1A5FDE /* Sky.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A108332937315E09541041 /* Sky.swift */; };
+		DBC88C2693FE158904B1EE8B /* Airports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */; };
 		EA42229AF8CA08E514565C68 /* Connect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C2C3D539A055F95B3FDD67 /* Connect.swift */; };
 		EAAD1F318C1988BD6C6E1441 /* SkyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02152E27B4A61FA235A856E /* SkyTests.swift */; };
 		F6EB8F75408876A5B70C0AE3 /* Moments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054A2BEE736248D2845A6FED /* Moments.swift */; };
@@ -42,7 +45,10 @@
 		5FD2C742802CE6055413F352 /* PersonPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonPage.swift; sourceTree = "<group>"; };
 		720388C0964E7C61BCA36AB4 /* Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
 		79A108332937315E09541041 /* Sky.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sky.swift; sourceTree = "<group>"; };
+		814677788BBC53D08024437E /* airports.csv */ = {isa = PBXFileReference; path = airports.csv; sourceTree = "<group>"; };
 		85DD0311538D16C2950248E2 /* People.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = People.swift; sourceTree = "<group>"; };
+		8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Airports.swift; sourceTree = "<group>"; };
+		905E5552CEB98ECDD990705D /* Notch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Notch.swift; sourceTree = "<group>"; };
 		90BFB6578061984319CE8089 /* SkiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesView.swift; sourceTree = "<group>"; };
 		A02152E27B4A61FA235A856E /* SkyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTests.swift; sourceTree = "<group>"; };
 		D29562640800AF3AEF507AA0 /* Scrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scrubber.swift; sourceTree = "<group>"; };
@@ -73,8 +79,11 @@
 		7DCEFFBDC5AA73A70EDF2D13 /* Skies */ = {
 			isa = PBXGroup;
 			children = (
+				814677788BBC53D08024437E /* airports.csv */,
+				8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */,
 				01C2C3D539A055F95B3FDD67 /* Connect.swift */,
 				054A2BEE736248D2845A6FED /* Moments.swift */,
+				905E5552CEB98ECDD990705D /* Notch.swift */,
 				720388C0964E7C61BCA36AB4 /* Onboarding.swift */,
 				85DD0311538D16C2950248E2 /* People.swift */,
 				D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */,
@@ -125,6 +134,7 @@
 			buildConfigurationList = BDF32553940C3BF743D60502 /* Build configuration list for PBXNativeTarget "Skies" */;
 			buildPhases = (
 				5086FD552F83B8D52A14E833 /* Sources */,
+				B63DC9B12C6CD2F1EF64E1A7 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -174,13 +184,26 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		B63DC9B12C6CD2F1EF64E1A7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7BC68B046F8F94D6F0BA51D5 /* airports.csv in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		5086FD552F83B8D52A14E833 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DBC88C2693FE158904B1EE8B /* Airports.swift in Sources */,
 				EA42229AF8CA08E514565C68 /* Connect.swift in Sources */,
 				F6EB8F75408876A5B70C0AE3 /* Moments.swift in Sources */,
+				83C6CAD3F3C8C0F6A921D36E /* Notch.swift in Sources */,
 				4822B1FF64A0DF3FC290AA0A /* Onboarding.swift in Sources */,
 				64F99FDDFDD32B2892049C85 /* People.swift in Sources */,
 				9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */,
@@ -374,6 +397,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Skies;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads your holiday calendars to show public holidays where your people live.";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Skies adds the calls and meetings you plan to your calendar.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Skies shows the photo and birthday of contacts you link to a city.";
@@ -410,6 +434,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Skies;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads your holiday calendars to show public holidays where your people live.";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Skies adds the calls and meetings you plan to your calendar.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Skies shows the photo and birthday of contacts you link to a city.";

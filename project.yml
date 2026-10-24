@@ -21,6 +21,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleLightContent
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        "INFOPLIST_KEY_LSUIElement[sdk=macosx*]": YES
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "-"
         ENABLE_APP_SANDBOX: YES

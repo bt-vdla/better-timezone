@@ -146,6 +146,26 @@ struct SkyTests {
         #expect(old.preferred?.method == .whatsapp)
     }
 
+    @Test func airportCodesAndNames() {
+        // Defaults: Hyderabad, Georgetown, London, Dubai, San Francisco.
+        #expect(team.map(\.code) == ["HYD", "GEO", "LHR", "DXB", "SFO"])
+        let vizag = Person(city: "Visakhapatnam", label: "Family", tzID: "Asia/Kolkata", lat: 17.69, lon: 83.22)
+        #expect(vizag.code == "VTZ")
+        #expect(vizag.name == "Family")
+        var mom = vizag
+        mom.contact = Person.Contact(id: "x", name: "Anna Haro")
+        #expect(mom.name == "Anna")
+        mom.codeOverride = "VIZ"
+        #expect(mom.code == "VIZ")
+        #expect(mom.title(.name) == "Anna" && mom.tag(.name) == "VIZ")
+        #expect(mom.title(.code) == "VIZ" && mom.tag(.code) == "Anna")
+        #expect(mom.title(.city) == "Visakhapatnam")
+        // No airport within 100 km: the city's first three letters.
+        let nowhere = Person(city: "Point Nemo", label: "", tzID: "UTC", lat: -48.88, lon: -123.39)
+        #expect(nowhere.code == "POI")
+        #expect(team[0].name == "You")
+    }
+
     @Test func durations() {
         #expect(dur(90) == "1h 30m")
         #expect(dur(-1500) == "1d 1h")

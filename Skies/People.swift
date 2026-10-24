@@ -17,6 +17,8 @@ struct Person: Codable, Identifiable, Hashable {
     /// ISO country code ("IN"), for their local working week and public holidays.
     var region: String?
     var contact: Contact?
+    /// Your own shortening for where they are ("VIZ"); nil uses the nearest airport's code.
+    var codeOverride: String?
 
     /// The bits of a contact card Skies keeps: enough to show a face, reach them, and know their birthday.
     struct Contact: Codable, Hashable {
@@ -73,8 +75,8 @@ struct Person: Codable, Identifiable, Hashable {
     }
 
     var relation: Kind { kind ?? .infer(label, isHome: isHome) }
-    /// What to call them in menus: their first name if a contact is linked, else the city.
-    var shortName: String { contact?.firstName ?? city }
+    /// What to call them in menus and sentences: the same as `name`.
+    var shortName: String { name }
     var tz: TimeZone { TimeZone(identifier: tzID) ?? .current }
 
     func inHours(_ f: Double) -> Bool { end > start ? f >= start && f < end : f >= start || f < end }
@@ -153,12 +155,31 @@ struct Person: Codable, Identifiable, Hashable {
     var list: [Person] { didSet { save() } }
     /// Empty means everyone. You are always included.
     var picked: Set<UUID> = [] { didSet { runsCache.removeAll() } }
+    /// A person to open in the main window, asked for from elsewhere (the Mac notch's "Edit…").
+    var focus: UUID?
     @ObservationIgnored private var runsCache: [String: [ClosedRange<Double>]] = [:]
     private static let key = "people.v1"
+
+    /// One store for the window and the notch, so both always show the same people.
+    static let shared = People()
+
+    /// False for the debug demo list, which must never overwrite the people you saved.
+    @ObservationIgnored private var persists = true
 
     init() {
         list = UserDefaults.standard.data(forKey: Self.key)
             .flatMap { try? JSONDecoder().decode([Person].self, from: $0) } ?? Person.defaults
+        #if DEBUG
+        // `-SkiesDemoPeople YES`: eight people (in memory only) to see layouts that kick in past five.
+        if UserDefaults.standard.bool(forKey: "SkiesDemoPeople") {
+            persists = false
+            list = Person.defaults + [
+                Person(city: "Visakhapatnam", label: "Mom", tzID: "Asia/Kolkata", lat: 17.69, lon: 83.22, region: "IN"),
+                Person(city: "Tokyo", label: "Ken", tzID: "Asia/Tokyo", lat: 35.68, lon: 139.65, region: "JP"),
+                Person(city: "São Paulo", label: "Bia", tzID: "America/Sao_Paulo", lat: -23.55, lon: -46.63, region: "BR"),
+            ]
+        }
+        #endif
     }
 
     var home: Person { list.first(where: \.isHome) ?? list[0] }
@@ -188,6 +209,7 @@ struct Person: Codable, Identifiable, Hashable {
     private func save() {
         runsCache.removeAll()
         picked = picked.filter { id in list.contains { $0.id == id } }
+        guard persists else { return }
         UserDefaults.standard.set(try? JSONEncoder().encode(list), forKey: Self.key)
     }
 }

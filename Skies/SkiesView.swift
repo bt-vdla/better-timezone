@@ -147,13 +147,18 @@ struct SkiesView: View {
             }
         }
         .task { await people.fillRegions() }
+        .onChange(of: people.focus, initial: true) {
+            guard let id = people.focus else { return }
+            people.focus = nil
+            sheet = .person(id)
+        }
     }
 
     #if os(macOS)
     private func watchScrollWheel() {
         NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { e in
             MainActor.assumeIsolated {
-                guard sheet == nil, e.window?.isKeyWindow == true else { return }
+                guard sheet == nil, e.window?.isKeyWindow == true, e.window !== NotchController.shared.panel else { return }
                 let dx = e.scrollingDeltaX, dy = e.scrollingDeltaY
                 if e.hasPreciseScrollingDeltas {
                     model.scroll(by: abs(dx) >= abs(dy) ? dx : dy, width: width)
@@ -427,6 +432,7 @@ struct SkyRow: View {
     var occasion: (icon: String, text: String)? = nil
     var time: Double = 0
     @Environment(\.dynamicTypeSize) private var typeSize
+    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
 
     var body: some View {
         let (label, dot) = status(person, local)
@@ -456,7 +462,7 @@ struct SkyRow: View {
             Avatar(person: person, size: 32).padding(.top, compact ? 0 : 3)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
-                    Text(person.city).sf(compact ? 18 : 22, .semibold).lineLimit(1).minimumScaleFactor(0.5)
+                    Text(person.title(showBy)).sf(compact ? 18 : 22, .semibold).lineLimit(1).minimumScaleFactor(0.5)
                     if picked {
                         Image(systemName: "checkmark.circle.fill")
                             .sf(compact ? 15 : 17, .semibold)
@@ -491,9 +497,9 @@ struct SkyRow: View {
 
     private func meta(label: String, dot: RGB, compact: Bool, withLabel: Bool) -> some View {
         HStack(spacing: 6) {
-            // The circle already says work or personal, so the label is plain text here.
-            if withLabel && !compact && !person.label.isEmpty {
-                Text(person.label)
+            // The secondary label (the airport code, or the name when codes lead), then what they're doing.
+            if withLabel {
+                Text(person.tag(showBy)).monospaced(showBy != .code)
                 Text("·").opacity(0.6)
             }
             Circle().fill(Color(dot)).frame(width: 6, height: 6)

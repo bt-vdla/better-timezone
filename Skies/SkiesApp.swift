@@ -2,23 +2,30 @@ import SwiftUI
 
 @main
 struct SkiesApp: App {
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(MacDelegate.self) private var delegate
+    @AppStorage("hotkey.label") private var hotkey = "⌃⌥S"
+    #endif
+
     var body: some Scene {
-        WindowGroup {
-            RootView()
-                #if os(macOS)
-                .frame(minWidth: 340, minHeight: 640)
-                #endif
-        }
         #if os(macOS)
-        .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 390, height: 800)
-        .windowResizability(.contentMinSize)
+        // Notch-first: no Dock icon. The notch opens with the hotkey; the full window opens from here or the notch.
+        MenuBarExtra("Skies", systemImage: "sun.horizon.fill") {
+            Button("Show in Notch  \(hotkey)") { NotchController.shared.open() }
+            Button("Open Skies") { MainWindow.shared.show() }
+            Divider()
+            SettingsLink { Text("Settings…") }.keyboardShortcut(",")
+            Button("Quit Skies") { NSApp.terminate(nil) }.keyboardShortcut("q")
+        }
+        Settings { SkiesSettings() }
+        #else
+        WindowGroup { RootView() }
         #endif
     }
 }
 
 struct RootView: View {
-    @State private var people = People()
+    @State private var people = People.shared
     @AppStorage("onboarded") private var onboarded = false
 
     var body: some View {

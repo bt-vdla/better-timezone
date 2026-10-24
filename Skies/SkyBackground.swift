@@ -10,11 +10,13 @@ struct SkyBackground: View {
     var time: Double = 0
     /// Halo, starburst and lens-flare strength: full on big skies, gentler behind text.
     var flare: Double = 0.45
+    /// False for skies too small to hold a sun or moon without covering text: the colours still tell day from night.
+    var discs = true
 
     var body: some View {
         let s = skyState(person, minutes)
         let seed = Double(person.city.unicodeScalars.reduce(0) { $0 &+ Int($1.value) } % 997)
-        let insets = insets, time = time.truncatingRemainder(dividingBy: 3600), flare = flare
+        let insets = insets, time = time.truncatingRemainder(dividingBy: 3600), flare = flare, discs = discs
         Rectangle().visualEffect { content, proxy in
             let w = proxy.size.width, top = insets.top
             let h = max(1, proxy.size.height - insets.top - insets.bottom)
@@ -27,8 +29,9 @@ struct SkyBackground: View {
                 .float2(proxy.size), .float2(top, h),
                 .float3(s.zenith.x / 255, s.zenith.y / 255, s.zenith.z / 255),
                 .float3(s.horizon.x / 255, s.horizon.y / 255, s.horizon.z / 255),
-                .float(s.sunElev), .float2(x(s.sunX), y(s.sunElev)),
-                .float(s.moonElev), .float2(x(min(1, max(0, s.moonX))), y(s.moonElev)), .float(s.phase),
+                // Without discs, sun and moon sit far off-canvas: no disc, no halo, but the sky keeps its colour.
+                .float(s.sunElev), discs ? .float2(x(s.sunX), y(s.sunElev)) : .float2(-2000, -2000),
+                .float(discs ? s.moonElev : -90), .float2(x(min(1, max(0, s.moonX))), y(s.moonElev)), .float(s.phase),
                 .float(seed), .float(time), .float(flare)))
         }
         .accessibilityHidden(true)
