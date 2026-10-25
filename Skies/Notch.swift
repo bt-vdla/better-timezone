@@ -243,6 +243,7 @@ final class MacDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
             NotchController.shared.start()
+            Task { await Nudges.schedule(People.shared.list) }
             if !UserDefaults.standard.bool(forKey: "onboarded") { MainWindow.shared.show() }
             #if DEBUG
             // `-SkiesOpenNotch YES` opens the notch at launch, for screenshots without touching the keyboard.
@@ -300,13 +301,13 @@ struct NotchView: View {
     @Environment(\.openURL) private var openURL
 
     /// Up to five people as side-by-side skies; more than that become a two-column list of one-line rows.
-    private var listed: Bool { people.list.count > 5 }
+    private var listed: Bool { people.visible.count > 5 }
     private var openWidth: CGFloat {
-        listed ? 640 : min(NotchController.size.width - 40, max(560, CGFloat(people.list.count) * 140 + 36))
+        listed ? 640 : min(NotchController.size.width - 40, max(560, CGFloat(people.visible.count) * 140 + 36))
     }
     /// Strip beside the notch, the skies, the tape. A list grows a row per two people.
     private var openHeight: CGFloat {
-        let skies = listed ? CGFloat((people.list.count + 1) / 2) * 34 - 6 : 64
+        let skies = listed ? CGFloat((people.visible.count + 1) / 2) * 34 - 6 : 64
         return max(state.notch.height, 24) + 6 + skies + 6 + 34 + 6
     }
 
@@ -429,7 +430,7 @@ struct NotchView: View {
     }
 
     private func skies(m: Double, time: Double) -> some View {
-        ForEach(people.list) { p in
+        ForEach(people.visible) { p in
             NotchTile(person: p, minutes: m, time: time, row: listed,
                       dimmed: !people.everyone && !people.team.contains(p),
                       picked: !people.picked.isEmpty && people.picked.contains(p.id)) { reach(p) }
@@ -441,7 +442,7 @@ struct NotchView: View {
     private func overlap(m: Double) -> some View {
         let home = people.home
         let runs = people.runs(from: dayStart(home.tz, m))
-        let verb = people.mode == .personal ? "Talk" : "Free"
+        let verb = (people.scopeTag.map { "\($0.name): " } ?? "") + (people.mode == .personal ? "Talk" : "Free")
         let text: String, target: Double?
         if let inside = runs.first(where: { $0.lowerBound <= m && m < $0.upperBound }) {
             let e = Local(home.tz, inside.upperBound)
@@ -491,6 +492,12 @@ struct NotchView: View {
                 people.toggle(p)
             }
         }
+        if !people.usedTags.isEmpty {
+            Picker("Show", selection: Binding(get: { people.scope }, set: { people.setScope($0) })) {
+                Text("Everyone").tag(nil as String?)
+                ForEach(people.usedTags) { t in Text(t.name).tag(t.id as String?) }
+            }
+        }
         Button("Edit \(p.name)…", systemImage: "pencil") {
             people.focus = p.id
             MainWindow.shared.show()
@@ -507,7 +514,7 @@ struct NotchTile: View {
     var row = false
     var dimmed = false, picked = false
     let action: () -> Void
-    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
+    @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
 
     var body: some View {
         let l = Local(person.tz, minutes)
@@ -555,6 +562,7 @@ struct NotchTile: View {
     private var who: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(person.title(showBy)).font(.sf(11, .semibold)).lineLimit(1).minimumScaleFactor(0.75)
+            TagDots(person: person, size: 5)
             Text(person.tag(showBy)).font(.system(size: 10, weight: .medium, design: showBy == .code ? .default : .monospaced))
                 .opacity(0.7).lineLimit(1).fixedSize()
         }
@@ -572,7 +580,7 @@ struct NotchTile: View {
 // MARK: - Settings
 
 struct SkiesSettings: View {
-    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
+    @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
     var body: some View {
         Form {
             LabeledContent("Open Skies in the notch") { ShortcutRecorder() }

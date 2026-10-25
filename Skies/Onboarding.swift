@@ -336,27 +336,22 @@ private struct MiniBand: View {
 /// Name and hours for one city.
 private struct NameCard: View {
     @Binding var person: Person
-    private static let names = ["Team", "Family", "Client", "Friends", "Partner"]
 
     enum Preset: String, CaseIterable { case office = "Office hours", awake = "Awake hours" }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(person.city).sf(15, .semibold).opacity(0.75)
-            TextField("Who's in \(person.city)?", text: $person.label)
+            TextField("Who's in \(person.city)? Type # to tag", text: $person.label)
                 .sf(22, .semibold)
                 .textFieldStyle(.plain)
-                .onChange(of: person.label) { old, _ in person.follow(from: .infer(old, isHome: false)) }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Self.names, id: \.self) { n in
-                        Button(n) { person.label = n }
-                            .sf(14, .medium).padding(.horizontal, 12).padding(.vertical, 6).frame(minHeight: 32)
-                            .buttonStyle(.plain)
-                            .glassEffect(person.label == n ? .regular.tint(.white.opacity(0.3)).interactive() : .regular.interactive(), in: Capsule())
-                    }
+                .autocorrectionDisabled()
+                .onChange(of: person.label) { old, _ in
+                    if person.tagList.isEmpty { person.follow(from: .infer(old, isHome: false)) }
+                    person.takeHashtags()
                 }
-            }
+                .onSubmit { person.takeHashtags(final: true) }
+            TagChips(person: $person)
             Picker("Hours", selection: Binding(
                 get: { person.start == 9 && person.end == 18 ? Preset.office : .awake },
                 set: { p in

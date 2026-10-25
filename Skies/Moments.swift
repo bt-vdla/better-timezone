@@ -68,6 +68,8 @@ import EventKitUI
     let names = others.map { $0.contact?.firstName ?? ($0.label.isEmpty ? $0.city : $0.label) }
     let event = EKEvent(eventStore: store)
     event.title = "\(talk ? "Call with" : "Meeting with") \(names.isEmpty ? "everyone" : ListFormatter.localizedString(byJoining: names))"
+    // Their shared tag's calendar, when it has one and Skies can see it (that needs full calendar access).
+    if let id = Tags.calendar(for: others), let cal = store.calendar(withIdentifier: id) { event.calendar = cal }
     event.startDate = Date(timeIntervalSince1970: snap(minutes) * 60)
     event.endDate = event.startDate.addingTimeInterval(30 * 60)
     event.timeZone = home.tz
@@ -111,10 +113,12 @@ struct EventPresenter: UIViewControllerRepresentable {
 }
 #endif
 
-/// The Mac has no event editor sheet, so it asks for write-only access and saves straight to the default calendar.
+/// The Mac has no event editor sheet, so it saves straight to the tag's calendar, or the default one.
 @MainActor func saveEvent(_ event: EKEvent, in store: EKEventStore) async -> Bool {
-    guard (try? await store.requestWriteOnlyAccessToEvents()) == true else { return false }
-    event.calendar = store.defaultCalendarForNewEvents
+    if EKEventStore.authorizationStatus(for: .event) != .fullAccess {
+        guard (try? await store.requestWriteOnlyAccessToEvents()) == true else { return false }
+    }
+    if event.calendar == nil { event.calendar = store.defaultCalendarForNewEvents }
     return (try? store.save(event, span: .thisEvent)) != nil
 }
 

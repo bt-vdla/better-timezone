@@ -8,7 +8,7 @@ struct PeopleSheet: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("onboarded") private var onboarded = true
     @AppStorage("coached") private var coached = true
-    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
+    @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
 
     var body: some View {
         NavigationStack {
@@ -30,6 +30,10 @@ struct PeopleSheet: View {
                     }
                 } label: {
                     Label("Add a city", systemImage: "plus.circle.fill")
+                }
+
+                Section {
+                    NavigationLink { TagsList(people: people) } label: { Label("Tags", systemImage: "tag") }
                 }
 
                 Section {
@@ -63,13 +67,16 @@ struct PeopleSheet: View {
 
 private struct PersonLabel: View {
     let person: Person
-    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
+    @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
     var body: some View {
         HStack(spacing: 12) {
         Avatar(person: person, size: 34)
         VStack(alignment: .leading, spacing: 2) {
-            Text(person.title(showBy)).font(.body.weight(.semibold))
-            Text(([person.name, person.code, person.city].filter { $0 != person.title(showBy) } + [hoursText(person)])
+            HStack(spacing: 6) {
+                Text(person.title(showBy)).font(.body.weight(.semibold))
+                TagDots(person: person)
+            }
+            Text(([person.name, person.code, person.city].filter { $0 != person.title(showBy) } + person.tagObjects.map(\.name) + [hoursText(person)])
                 .joined(separator: " · "))
                 .font(.footnote).foregroundStyle(.secondary)
         }
@@ -93,20 +100,16 @@ struct PersonEditor: View {
     var body: some View {
         Form {
             Section {
-                TextField("Who's there? (e.g. Design team, Mom)", text: $person.label)
+                TextField("Name, or type # to tag", text: $person.label)
+                    .autocorrectionDisabled()
                     .onChange(of: person.label) { old, _ in
-                        if person.kind == nil { person.follow(from: .infer(old, isHome: person.isHome)) }
+                        if person.kind == nil && person.tagList.isEmpty { person.follow(from: .infer(old, isHome: person.isHome)) }
+                        person.takeHashtags()
                     }
-                Picker("Relationship", selection: Binding(
-                    get: { person.relation },
-                    set: { new in
-                        let old = person.relation
-                        person.kind = new
-                        person.follow(from: old)
-                    })) {
-                    ForEach(Person.Kind.allCases, id: \.self) { Label($0.title, systemImage: $0.symbol).tag($0) }
+                    .onSubmit { person.takeHashtags(final: true) }
+                if !person.isHome {
+                    TagChips(person: $person).padding(.vertical, 4)
                 }
-                .pickerStyle(.segmented)
                 NavigationLink {
                     CitySearch { place in
                         person.city = place.city
@@ -127,7 +130,7 @@ struct PersonEditor: View {
                         .autocorrectionDisabled()
                 }
             } footer: {
-                Text("\(person.tz.localizedName(for: .generic, locale: .current) ?? person.tzID). The short code shows beside their name; leave it empty to use the nearest airport.")
+                Text("\(person.isHome ? "" : "\(person.relation.title), from \(person.tagObjects.first.map { "the \($0.name) tag" } ?? "their name"). ")\(person.tz.localizedName(for: .generic, locale: .current) ?? person.tzID). The short code shows beside their name; leave it empty to use the nearest airport.")
             }
 
             Section {

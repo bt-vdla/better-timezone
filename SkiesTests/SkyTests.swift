@@ -166,6 +166,51 @@ struct SkyTests {
         #expect(team[0].name == "You")
     }
 
+    // Tags are read from the catalogue but never saved here: tests share the real app's defaults.
+    @Test func hashtagParsing() {
+        #expect(Tags.hashtags(in: "Amma #family ") == ("Amma", ["family"], nil))
+        #expect(Tags.hashtags(in: "Amma #fa").typing == "fa")
+        #expect(Tags.hashtags(in: "Amma #fa").tags.isEmpty)
+        #expect(Tags.hashtags(in: "Amma #fa", final: true) == ("Amma", ["fa"], nil))
+        #expect(Tags.hashtags(in: "Amma #").typing == "")
+        #expect(Tags.hashtags(in: "Juggy #friends #team ") == ("Juggy", ["friends", "team"], nil))
+    }
+
+    @Test func tagsKeepTheName() {
+        var amma = Person(city: "Visakhapatnam", label: "Amma", tzID: "Asia/Kolkata", lat: 17.72, lon: 83.31, region: "IN")
+        #expect(Tags.suggest(for: amma)?.id == "family")
+        amma.label = "Amma #family "
+        amma.takeHashtags()
+        #expect(amma.label == "Amma" && amma.tagList == ["family"])
+        #expect(amma.relation == .personal)
+        amma.toggleTag("client")
+        #expect(amma.label == "Amma" && amma.tagList == ["family", "client"])
+        #expect(Tags.suggest(for: amma) == nil)
+        // The first tag decides; hours move only while they're still a preset.
+        var juggy = Person(city: "San Francisco", label: "Juggy", tzID: "America/Los_Angeles", lat: 37.77, lon: -122.42, region: "US")
+        juggy.applyPreset(.personal)
+        juggy.toggleTag("team")
+        #expect(juggy.relation == .work && juggy.start == 9 && juggy.end == 18)
+        #expect(Tags.match("Family")?.id == "family" && Tags.match("Partners") == nil)
+    }
+
+    @Test func tagQuietHours() {
+        let t = PersonTag(id: "x", name: "Clients", kind: .work, color: 0, notBefore: 10, notAfter: 17, skipWeekend: true)
+        let utc = TimeZone(identifier: "UTC")!
+        #expect(!t.allows(Local(utc, mondayNoonUTC - 180), workdays: [1, 2, 3, 4, 5]))
+        #expect(t.allows(Local(utc, mondayNoonUTC - 60), workdays: [1, 2, 3, 4, 5]))
+        #expect(!t.allows(Local(utc, mondayNoonUTC - 60 - 2 * 1440), workdays: [1, 2, 3, 4, 5]))
+    }
+
+    @Test func worldLine() {
+        // Noon UTC, 19 October: the sun runs about 15 minutes fast, so it's overhead ~3.7° west, at about −10° latitude.
+        let s = subsolar(mondayNoonUTC)
+        #expect(s.lat > -11 && s.lat < -9)
+        #expect(s.lon > -6 && s.lon < -1.5)
+        #expect(sunHeight(lat: s.lat, lon: s.lon, below: s) > 89.9)
+        #expect(sunHeight(lat: 0, lon: 180, below: s) < -70)
+    }
+
     @Test func durations() {
         #expect(dur(90) == "1h 30m")
         #expect(dur(-1500) == "1d 1h")

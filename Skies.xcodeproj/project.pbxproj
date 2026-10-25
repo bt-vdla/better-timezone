@@ -7,23 +7,38 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0CFE0CCAE56901EE6BB017FA /* airports.csv in Resources */ = {isa = PBXBuildFile; fileRef = 814677788BBC53D08024437E /* airports.csv */; };
 		252D981C9F5C1BCADACA27EA /* SkyBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC6F410F694BB5D05F0E7216 /* SkyBackground.swift */; };
+		2F097AA97DE0273D6E9FAECD /* MoreWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75A86C47666F8AF4839DE893 /* MoreWidgets.swift */; };
+		3D25A65CAA0E4CA90B56C56D /* SkiesWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 121E59F83ED10F9C185D8F83 /* SkiesWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4822B1FF64A0DF3FC290AA0A /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720388C0964E7C61BCA36AB4 /* Onboarding.swift */; };
+		4A6AFBCA1962B54645947A89 /* Airports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */; };
+		5A6158A60B1D58C8F886E4D8 /* Sky.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A108332937315E09541041 /* Sky.swift */; };
+		5AC81B1F978F544B5CFFF468 /* People.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DD0311538D16C2950248E2 /* People.swift */; };
 		5E73686C0862473F6D06557A /* Scrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = D29562640800AF3AEF507AA0 /* Scrubber.swift */; };
 		64F99FDDFDD32B2892049C85 /* People.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DD0311538D16C2950248E2 /* People.swift */; };
 		67F9A043D98F205CA87C74B8 /* PersonPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD2C742802CE6055413F352 /* PersonPage.swift */; };
 		7BC68B046F8F94D6F0BA51D5 /* airports.csv in Resources */ = {isa = PBXBuildFile; fileRef = 814677788BBC53D08024437E /* airports.csv */; };
+		7E685F8A75441B891C6AAD46 /* SharedIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECDCA57ADE21212596C4E48 /* SharedIntents.swift */; };
 		83C6CAD3F3C8C0F6A921D36E /* Notch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905E5552CEB98ECDD990705D /* Notch.swift */; };
+		8450FEC83605BDB01AE3D1A0 /* Tags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8263C47AF85C316D185C69 /* Tags.swift */; };
+		8AA3899D2173BE0A61C27ACF /* TagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE1B5104745C19131380477 /* TagViews.swift */; };
 		9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */; };
+		A27AD70BB7E2C83EC747CDE3 /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4010E04CB8567AA0E800D21E /* Intents.swift */; };
 		A287DA5E189072960DAABBAA /* Sky.metal in Sources */ = {isa = PBXBuildFile; fileRef = 25801DA363D61723BF70C5C8 /* Sky.metal */; };
 		A2E88BC37953DBC3004D127E /* Planner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A97F7DEB4B5653CD60056 /* Planner.swift */; };
 		A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */; };
 		AD115356A2B66E96BC1A5FDE /* Sky.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A108332937315E09541041 /* Sky.swift */; };
+		BC2436F13894435E459D21A1 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CCD592752A86F92C3F30E8 /* Model.swift */; };
+		C1E76C99E8F61B4CA646A3A3 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CCD592752A86F92C3F30E8 /* Model.swift */; };
+		C91D4EE1B328F0662682DAC3 /* Tags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8263C47AF85C316D185C69 /* Tags.swift */; };
 		DBC88C2693FE158904B1EE8B /* Airports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */; };
 		EA42229AF8CA08E514565C68 /* Connect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C2C3D539A055F95B3FDD67 /* Connect.swift */; };
 		EAAD1F318C1988BD6C6E1441 /* SkyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02152E27B4A61FA235A856E /* SkyTests.swift */; };
 		F6EB8F75408876A5B70C0AE3 /* Moments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054A2BEE736248D2845A6FED /* Moments.swift */; };
+		F99F11644BE759113E6883F6 /* SkiesWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7786403AF49152C766020961 /* SkiesWidgets.swift */; };
 		FA6060891A86BE5DE8B00F4C /* SkiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90BFB6578061984319CE8089 /* SkiesView.swift */; };
+		FC3C99398D2E152FFB26001D /* SharedIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECDCA57ADE21212596C4E48 /* SharedIntents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,16 +49,46 @@
 			remoteGlobalIDString = FB436C9383C7EE1B29605136;
 			remoteInfo = Skies;
 		};
+		FA57491DF22D50DEE3F1E6D4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F89F1E7520C4F2AC3FE8A611 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0B556BA631BED328EF998DC8;
+			remoteInfo = SkiesWidgets;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		628AE7ABFC76044D4ECCD65F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				3D25A65CAA0E4CA90B56C56D /* SkiesWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		01C2C3D539A055F95B3FDD67 /* Connect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connect.swift; sourceTree = "<group>"; };
 		054A2BEE736248D2845A6FED /* Moments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Moments.swift; sourceTree = "<group>"; };
+		121E59F83ED10F9C185D8F83 /* SkiesWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SkiesWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		153C2A3ACB41F09F0F2725B3 /* SkiesWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SkiesWidgets.entitlements; sourceTree = "<group>"; };
+		1B8263C47AF85C316D185C69 /* Tags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tags.swift; sourceTree = "<group>"; };
+		2130ECA90442D24FF9844ECA /* Skies.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Skies.entitlements; sourceTree = "<group>"; };
 		25801DA363D61723BF70C5C8 /* Sky.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Sky.metal; sourceTree = "<group>"; };
 		2D4A97F7DEB4B5653CD60056 /* Planner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Planner.swift; sourceTree = "<group>"; };
+		4010E04CB8567AA0E800D21E /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
+		498A51D3E0D5FEC9EFEDB2D5 /* SkiesWidgets-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "SkiesWidgets-macOS.entitlements"; sourceTree = "<group>"; };
+		52CCD592752A86F92C3F30E8 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		5A563B8735224F0390D5C92A /* Skies.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Skies.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5FD2C742802CE6055413F352 /* PersonPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonPage.swift; sourceTree = "<group>"; };
 		720388C0964E7C61BCA36AB4 /* Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
+		75A86C47666F8AF4839DE893 /* MoreWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreWidgets.swift; sourceTree = "<group>"; };
+		7786403AF49152C766020961 /* SkiesWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesWidgets.swift; sourceTree = "<group>"; };
 		79A108332937315E09541041 /* Sky.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sky.swift; sourceTree = "<group>"; };
 		814677788BBC53D08024437E /* airports.csv */ = {isa = PBXFileReference; path = airports.csv; sourceTree = "<group>"; };
 		85DD0311538D16C2950248E2 /* People.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = People.swift; sourceTree = "<group>"; };
@@ -51,10 +96,14 @@
 		905E5552CEB98ECDD990705D /* Notch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Notch.swift; sourceTree = "<group>"; };
 		90BFB6578061984319CE8089 /* SkiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesView.swift; sourceTree = "<group>"; };
 		A02152E27B4A61FA235A856E /* SkyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTests.swift; sourceTree = "<group>"; };
+		B923DE91AC700FA3980B1DA6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		CECDCA57ADE21212596C4E48 /* SharedIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedIntents.swift; sourceTree = "<group>"; };
 		D29562640800AF3AEF507AA0 /* Scrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scrubber.swift; sourceTree = "<group>"; };
 		D494AA1A465DCC431EA917CB /* SkiesTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SkiesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleViews.swift; sourceTree = "<group>"; };
+		DAE1B5104745C19131380477 /* TagViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagViews.swift; sourceTree = "<group>"; };
 		DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesApp.swift; sourceTree = "<group>"; };
+		E765FD9AE1B82E95BD66BB68 /* Skies-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Skies-macOS.entitlements"; sourceTree = "<group>"; };
 		EC6F410F694BB5D05F0E7216 /* SkyBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyBackground.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -72,6 +121,7 @@
 			children = (
 				7DCEFFBDC5AA73A70EDF2D13 /* Skies */,
 				33E141FFA44995B26881A776 /* SkiesTests */,
+				E27EFCB1828733FCAA242905 /* SkiesWidgets */,
 				E3A9B7F17A1CF4CFC45D2D7D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -82,6 +132,7 @@
 				814677788BBC53D08024437E /* airports.csv */,
 				8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */,
 				01C2C3D539A055F95B3FDD67 /* Connect.swift */,
+				52CCD592752A86F92C3F30E8 /* Model.swift */,
 				054A2BEE736248D2845A6FED /* Moments.swift */,
 				905E5552CEB98ECDD990705D /* Notch.swift */,
 				720388C0964E7C61BCA36AB4 /* Onboarding.swift */,
@@ -90,13 +141,31 @@
 				5FD2C742802CE6055413F352 /* PersonPage.swift */,
 				2D4A97F7DEB4B5653CD60056 /* Planner.swift */,
 				D29562640800AF3AEF507AA0 /* Scrubber.swift */,
+				CECDCA57ADE21212596C4E48 /* SharedIntents.swift */,
+				E765FD9AE1B82E95BD66BB68 /* Skies-macOS.entitlements */,
+				2130ECA90442D24FF9844ECA /* Skies.entitlements */,
 				DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */,
 				90BFB6578061984319CE8089 /* SkiesView.swift */,
 				25801DA363D61723BF70C5C8 /* Sky.metal */,
 				79A108332937315E09541041 /* Sky.swift */,
 				EC6F410F694BB5D05F0E7216 /* SkyBackground.swift */,
+				1B8263C47AF85C316D185C69 /* Tags.swift */,
+				DAE1B5104745C19131380477 /* TagViews.swift */,
 			);
 			path = Skies;
+			sourceTree = "<group>";
+		};
+		E27EFCB1828733FCAA242905 /* SkiesWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				B923DE91AC700FA3980B1DA6 /* Info.plist */,
+				4010E04CB8567AA0E800D21E /* Intents.swift */,
+				75A86C47666F8AF4839DE893 /* MoreWidgets.swift */,
+				498A51D3E0D5FEC9EFEDB2D5 /* SkiesWidgets-macOS.entitlements */,
+				153C2A3ACB41F09F0F2725B3 /* SkiesWidgets.entitlements */,
+				7786403AF49152C766020961 /* SkiesWidgets.swift */,
+			);
+			path = SkiesWidgets;
 			sourceTree = "<group>";
 		};
 		E3A9B7F17A1CF4CFC45D2D7D /* Products */ = {
@@ -104,6 +173,7 @@
 			children = (
 				5A563B8735224F0390D5C92A /* Skies.app */,
 				D494AA1A465DCC431EA917CB /* SkiesTests.xctest */,
+				121E59F83ED10F9C185D8F83 /* SkiesWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -111,6 +181,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0B556BA631BED328EF998DC8 /* SkiesWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E2A23CA649D98E4380CD262F /* Build configuration list for PBXNativeTarget "SkiesWidgets" */;
+			buildPhases = (
+				0492CD728C6316B9870BFF8E /* Sources */,
+				1F103989DE93E22CEA2853E8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SkiesWidgets;
+			packageProductDependencies = (
+			);
+			productName = SkiesWidgets;
+			productReference = 121E59F83ED10F9C185D8F83 /* SkiesWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		2BD5D82107574D337693F7A9 /* SkiesTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6FE8C4CB601E474A67899D78 /* Build configuration list for PBXNativeTarget "SkiesTests" */;
@@ -135,10 +223,12 @@
 			buildPhases = (
 				5086FD552F83B8D52A14E833 /* Sources */,
 				B63DC9B12C6CD2F1EF64E1A7 /* Resources */,
+				628AE7ABFC76044D4ECCD65F /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				95916354F824F1D16B6994C8 /* PBXTargetDependency */,
 			);
 			name = Skies;
 			packageProductDependencies = (
@@ -156,10 +246,16 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					0B556BA631BED328EF998DC8 = {
+						DevelopmentTeam = P6SP5RHNLV;
+						ProvisioningStyle = Automatic;
+					};
 					2BD5D82107574D337693F7A9 = {
+						DevelopmentTeam = P6SP5RHNLV;
 						ProvisioningStyle = Automatic;
 					};
 					FB436C9383C7EE1B29605136 = {
+						DevelopmentTeam = P6SP5RHNLV;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -180,11 +276,20 @@
 			targets = (
 				FB436C9383C7EE1B29605136 /* Skies */,
 				2BD5D82107574D337693F7A9 /* SkiesTests */,
+				0B556BA631BED328EF998DC8 /* SkiesWidgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1F103989DE93E22CEA2853E8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0CFE0CCAE56901EE6BB017FA /* airports.csv in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B63DC9B12C6CD2F1EF64E1A7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -196,12 +301,29 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0492CD728C6316B9870BFF8E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A6AFBCA1962B54645947A89 /* Airports.swift in Sources */,
+				A27AD70BB7E2C83EC747CDE3 /* Intents.swift in Sources */,
+				C1E76C99E8F61B4CA646A3A3 /* Model.swift in Sources */,
+				2F097AA97DE0273D6E9FAECD /* MoreWidgets.swift in Sources */,
+				5AC81B1F978F544B5CFFF468 /* People.swift in Sources */,
+				FC3C99398D2E152FFB26001D /* SharedIntents.swift in Sources */,
+				F99F11644BE759113E6883F6 /* SkiesWidgets.swift in Sources */,
+				5A6158A60B1D58C8F886E4D8 /* Sky.swift in Sources */,
+				8450FEC83605BDB01AE3D1A0 /* Tags.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5086FD552F83B8D52A14E833 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				DBC88C2693FE158904B1EE8B /* Airports.swift in Sources */,
 				EA42229AF8CA08E514565C68 /* Connect.swift in Sources */,
+				BC2436F13894435E459D21A1 /* Model.swift in Sources */,
 				F6EB8F75408876A5B70C0AE3 /* Moments.swift in Sources */,
 				83C6CAD3F3C8C0F6A921D36E /* Notch.swift in Sources */,
 				4822B1FF64A0DF3FC290AA0A /* Onboarding.swift in Sources */,
@@ -210,11 +332,14 @@
 				67F9A043D98F205CA87C74B8 /* PersonPage.swift in Sources */,
 				A2E88BC37953DBC3004D127E /* Planner.swift in Sources */,
 				5E73686C0862473F6D06557A /* Scrubber.swift in Sources */,
+				7E685F8A75441B891C6AAD46 /* SharedIntents.swift in Sources */,
 				A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */,
 				FA6060891A86BE5DE8B00F4C /* SkiesView.swift in Sources */,
 				A287DA5E189072960DAABBAA /* Sky.metal in Sources */,
 				AD115356A2B66E96BC1A5FDE /* Sky.swift in Sources */,
 				252D981C9F5C1BCADACA27EA /* SkyBackground.swift in Sources */,
+				8AA3899D2173BE0A61C27ACF /* TagViews.swift in Sources */,
+				C91D4EE1B328F0662682DAC3 /* Tags.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -233,6 +358,11 @@
 			isa = PBXTargetDependency;
 			target = FB436C9383C7EE1B29605136 /* Skies */;
 			targetProxy = B94CE108B4E8A5D526445B56 /* PBXContainerItemProxy */;
+		};
+		95916354F824F1D16B6994C8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0B556BA631BED328EF998DC8 /* SkiesWidgets */;
+			targetProxy = FA57491DF22D50DEE3F1E6D4 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -272,6 +402,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = P6SP5RHNLV;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -298,7 +429,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -316,6 +447,60 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Skies.app/Skies";
 				"TEST_HOST[sdk=macosx*]" = "$(BUILT_PRODUCTS_DIR)/Skies.app/Contents/MacOS/Skies";
+			};
+			name = Debug;
+		};
+		33D83E18C1CD5BC3CA708C0D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SkiesWidgets/SkiesWidgets.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SkiesWidgets/SkiesWidgets-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				ENABLE_APP_SANDBOX = YES;
+				INFOPLIST_FILE = SkiesWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies.widgets;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		84B1EEF8FFF9BF728B439A8A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SkiesWidgets/SkiesWidgets.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SkiesWidgets/SkiesWidgets-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				ENABLE_APP_SANDBOX = YES;
+				INFOPLIST_FILE = SkiesWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies.widgets;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -354,6 +539,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = P6SP5RHNLV;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -387,9 +573,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_ENTITLEMENTS = Skies/Skies.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Skies/Skies-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
@@ -401,6 +589,7 @@
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads your holiday calendars to show public holidays where your people live.";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Skies adds the calls and meetings you plan to your calendar.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Skies shows the photo and birthday of contacts you link to a city.";
+				"INFOPLIST_KEY_NSSupportsLiveActivities[sdk=iphone*]" = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -424,9 +613,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_ENTITLEMENTS = Skies/Skies.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Skies/Skies-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
@@ -438,6 +629,7 @@
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads your holiday calendars to show public holidays where your people live.";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Skies adds the calls and meetings you plan to your calendar.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Skies shows the photo and birthday of contacts you link to a city.";
+				"INFOPLIST_KEY_NSSupportsLiveActivities[sdk=iphone*]" = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -461,7 +653,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -508,6 +700,15 @@
 			buildConfigurations = (
 				C6D84A9AD9E92C9939E28687 /* Debug */,
 				9089ADA10C711E0A2DD36710 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E2A23CA649D98E4380CD262F /* Build configuration list for PBXNativeTarget "SkiesWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84B1EEF8FFF9BF728B439A8A /* Debug */,
+				33D83E18C1CD5BC3CA708C0D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

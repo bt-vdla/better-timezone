@@ -18,6 +18,9 @@ enum Airports {
 
     private static let cache = Mutex<[String: String?]>([:])
 
+    /// Every scheduled airport, as places to dot a world map with: together they trace the continents.
+    static var points: [(lat: Double, lon: Double)] { all.map { ($0.lat, $0.lon) } }
+
     /// The code people would recognise: the nearest large airport within 100 km, else the nearest medium one.
     /// London is LHR, not the slightly closer London City.
     static func nearest(lat: Double, lon: Double) -> String? {

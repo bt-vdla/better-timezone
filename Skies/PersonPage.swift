@@ -28,7 +28,7 @@ struct PersonDetail: View {
     /// Called after "Plan with…" picks them, so whoever presented this can close.
     let onPlan: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
+    @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -91,6 +91,16 @@ struct PersonDetail: View {
             Avatar(person: p, size: 84).padding(.bottom, 10)
             Text(p.title(showBy)).sf(32, .semibold)
             Text([p.name, p.code, p.city].filter { $0 != p.title(showBy) }.joined(separator: " · ")).sf(17, .medium).opacity(0.8)
+            if !p.tagObjects.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(p.tagObjects) { t in
+                        Text(t.name).sf(13, .semibold)
+                            .padding(.horizontal, 10).frame(minHeight: 24)
+                            .background(Color(t.rgb).opacity(0.85), in: Capsule())
+                    }
+                }
+                .padding(.top, 6)
+            }
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(clock(l)).sf(96, .thin).tracking(-3).monospacedDigit()
                 Text(ampm(l.h)).sf(26, .light)

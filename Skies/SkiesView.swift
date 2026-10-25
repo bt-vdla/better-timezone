@@ -147,6 +147,10 @@ struct SkiesView: View {
             }
         }
         .task { await people.fillRegions() }
+        .task(id: people.list) { await Nudges.schedule(people.list) }
+        #if os(iOS)
+        .task { LiveWindow.tidy() }
+        #endif
         .onChange(of: people.focus, initial: true) {
             guard let id = people.focus else { return }
             people.focus = nil
@@ -184,7 +188,7 @@ struct SkiesView: View {
         }
 
         return VStack(spacing: 0) {
-            ForEach(people.list) { p in
+            ForEach(people.visible) { p in
                 let l = p.isHome ? h : Local(p.tz, m)
                 SkyRow(person: p, minutes: m, local: l, home: h,
                        dimmed: !people.everyone && !people.team.contains(p), picked: !people.picked.isEmpty && people.picked.contains(p.id),
@@ -195,6 +199,9 @@ struct SkiesView: View {
                         Button("Open \(p.shortName)", systemImage: "arrow.up.left.and.arrow.down.right") { sheet = .person(p.id) }
                         if !p.isHome {
                             Button("Plan with \(p.shortName) only", systemImage: "person.crop.circle") { people.picked = [p.id] }
+                        }
+                        ForEach(p.tagObjects) { t in
+                            Button("Show \(t.name)", systemImage: "tag") { people.setScope(t.id) }
                         }
                         if let c = p.contact, let fav = c.preferred {
                             // The favourite first, like the Phone app; the other two everyday ways after it.
@@ -211,6 +218,7 @@ struct SkiesView: View {
             }
         }
         .animation(.easeOutStrong(0.2), value: people.picked)
+        .animation(reduceMotion ? .easeOutStrong(0.2) : .spring(response: 0.4, dampingFraction: 1), value: people.scope)
         .sensoryFeedback(.selection, trigger: people.picked)
         .safeAreaInset(edge: .top, spacing: 0) { header(when: when, m: m, home: home, showNow: showNow) }
         .safeAreaInset(edge: .bottom, spacing: 0) { dock(m: m, now: now, h: h, when: when, hourKey: hourKey) }
@@ -251,6 +259,8 @@ struct SkiesView: View {
                             .glassEffectID("now", in: glass)
                             .buttonStyle(.plain)
                     }
+                    ScopeMenu(people: people)
+                        .glassEffectID("scope", in: glass)
                     Button { sheet = .people } label: {
                         Image(systemName: "person.2.fill").font(.sf(15, .semibold)).frame(width: 40, height: 40)
                     }
@@ -295,9 +305,18 @@ struct SkiesView: View {
                 }
                 .buttonStyle(PressScale(scale: 0.98))
                 .accessibilityHint(ov.target != nil ? "Jumps to that time" : "")
+                #if os(iOS)
+                .contextMenu {
+                    if let w = people.runs(from: dayStart(people.home.tz, now)).first(where: { $0.upperBound > now }) {
+                        Button("Count down on Lock Screen", systemImage: "timer") {
+                            LiveWindow.start(who: liveWho, talk: people.mode == .personal, window: w)
+                        }
+                    }
+                }
+                #endif
 
                 if !people.everyone {
-                    Button { people.picked = [] } label: {
+                    Button { people.setScope(nil) } label: {
                         Image(systemName: "xmark").font(.sf(13, .bold)).frame(width: 30, height: 30)
                     }
                     .buttonStyle(.plain)
@@ -356,8 +375,16 @@ struct SkiesView: View {
 
     // MARK: Overlap text
 
+    /// Who a Live Activity names: the tag, everyone, or the people picked.
+    private var liveWho: String {
+        if let t = people.scopeTag, people.team.count == people.visible.count { return t.name }
+        if people.everyone { return "everyone" }
+        return ListFormatter.localizedString(byJoining: people.team.filter { !$0.isHome }.map(\.shortName))
+    }
+
     private var who: String {
         if people.everyone { return "Everyone" }
+        if let t = people.scopeTag, people.team.count == people.visible.count { return "You and \(t.name)" }
         let others = people.team.filter { !$0.isHome }.map(\.shortName)
         return others.count == 1 ? "You and \(others[0])" : others.count == 2 ? "You, \(others[0]) and \(others[1])" : "You and \(others.count) others"
     }
@@ -432,7 +459,7 @@ struct SkyRow: View {
     var occasion: (icon: String, text: String)? = nil
     var time: Double = 0
     @Environment(\.dynamicTypeSize) private var typeSize
-    @AppStorage(ShowBy.key) private var showBy: ShowBy = .name
+    @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
 
     var body: some View {
         let (label, dot) = status(person, local)
@@ -463,6 +490,7 @@ struct SkyRow: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
                     Text(person.title(showBy)).sf(compact ? 18 : 22, .semibold).lineLimit(1).minimumScaleFactor(0.5)
+                    TagDots(person: person, size: compact ? 6 : 7)
                     if picked {
                         Image(systemName: "checkmark.circle.fill")
                             .sf(compact ? 15 : 17, .semibold)
@@ -595,3 +623,29 @@ struct TightLabel: LabelStyle {
         }
     }
 }
+
+#if os(iOS)
+import ActivityKit
+
+/// The next shared window on the Lock Screen and in the Dynamic Island: one at a time, gone once it closes.
+enum LiveWindow {
+    static func start(who: String, talk: Bool, window: ClosedRange<Double>) {
+        let state = WindowActivity.ContentState(start: Date(timeIntervalSince1970: window.lowerBound * 60),
+                                                end: Date(timeIntervalSince1970: window.upperBound * 60))
+        Task {
+            for a in Activity<WindowActivity>.activities { await a.end(nil, dismissalPolicy: .immediate) }
+            _ = try? Activity.request(attributes: WindowActivity(who: who, talk: talk),
+                                      content: ActivityContent(state: state, staleDate: state.end))
+        }
+    }
+
+    /// Ends any whose window has closed (they can't end themselves without a server).
+    static func tidy() {
+        Task {
+            for a in Activity<WindowActivity>.activities where a.content.state.end < .now {
+                await a.end(nil, dismissalPolicy: .immediate)
+            }
+        }
+    }
+}
+#endif

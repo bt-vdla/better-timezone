@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 import Synchronization
 
 struct Person: Codable, Identifiable, Hashable {
@@ -19,6 +22,8 @@ struct Person: Codable, Identifiable, Hashable {
     var contact: Contact?
     /// Your own shortening for where they are ("VIZ"); nil uses the nearest airport's code.
     var codeOverride: String?
+    /// Tag ids ("family"), in the order chosen; the first says work or personal. Nil for people saved before tags.
+    var tags: [String]?
 
     /// The bits of a contact card Skies keeps: enough to show a face, reach them, and know their birthday.
     struct Contact: Codable, Hashable {
@@ -33,6 +38,8 @@ struct Person: Codable, Identifiable, Hashable {
         var photo: Data?
         /// The way you usually reach them, pinned like a Phone favourite.
         var favourite: Channel?
+        /// Their company, which suggests a work tag.
+        var organization: String?
 
         struct Number: Codable, Hashable {
             var label: String
@@ -74,7 +81,8 @@ struct Person: Codable, Identifiable, Hashable {
         }
     }
 
-    var relation: Kind { kind ?? .infer(label, isHome: isHome) }
+    /// Set by hand, else their first tag's, else read from the name.
+    var relation: Kind { kind ?? tagList.lazy.compactMap { Tags.named($0)?.kind }.first ?? .infer(label, isHome: isHome) }
     /// What to call them in menus and sentences: the same as `name`.
     var shortName: String { name }
     var tz: TimeZone { TimeZone(identifier: tzID) ?? .current }
@@ -89,6 +97,9 @@ struct Person: Codable, Identifiable, Hashable {
         // ponytail: your free-time hours are fixed at 8 AM–10 PM every day; a setting if anyone keeps odd hours.
         let open = offDuty ? l.f >= 8 && l.f < 22 : days.contains(l.wd) && inHours(l.f)
         guard open else { return false }
+        for id in tagList where !isHome {
+            if let t = Tags.named(id), !t.allows(l, workdays: workdays) { return false }
+        }
         return !(relation == .personal || offDuty) || !busyDay(l)
     }
 
@@ -157,8 +168,10 @@ struct Person: Codable, Identifiable, Hashable {
     var picked: Set<UUID> = [] { didSet { runsCache.removeAll() } }
     /// A person to open in the main window, asked for from elsewhere (the Mac notch's "Edit…").
     var focus: UUID?
+    /// A tag being looked at: only you and its people show, and they're the ones planned with.
+    private(set) var scope: String?
     @ObservationIgnored private var runsCache: [String: [ClosedRange<Double>]] = [:]
-    private static let key = "people.v1"
+    private static let key = Person.storeKey
 
     /// One store for the window and the notch, so both always show the same people.
     static let shared = People()
@@ -167,8 +180,36 @@ struct Person: Codable, Identifiable, Hashable {
     @ObservationIgnored private var persists = true
 
     init() {
-        list = UserDefaults.standard.data(forKey: Self.key)
-            .flatMap { try? JSONDecoder().decode([Person].self, from: $0) } ?? Person.defaults
+        // Saved people moved into the App Group so widgets can read them; bring over anything saved before that.
+        // On the Mac the newest copy is in the old group name, which only ever worked as the app's private store.
+        var sources = [UserDefaults.standard]
+        #if os(macOS)
+        if let old = UserDefaults(suiteName: UserDefaults.oldMacGroupID) { sources.insert(old, at: 0) }
+        #endif
+        if UserDefaults.skies.data(forKey: Self.key) == nil {
+            for key in [Self.key, Tags.key, ShowBy.key] {
+                if let value = sources.lazy.compactMap({ $0.object(forKey: key) }).first { UserDefaults.skies.set(value, forKey: key) }
+            }
+            Tags.reload()
+        }
+        list = Person.saved()
+        // Before tags, a group's name went in the name field ("Family"); make it a tag too, once. Names stay as they are.
+        if list.contains(where: { $0.tags == nil }) {
+            list = list.map { p in
+                var p = p
+                if p.tags == nil { p.tags = p.isHome ? [] : Tags.match(p.label).map { [$0.id] } ?? [] }
+                return p
+            }
+            save()
+        }
+        applyFocus()
+        // After an update, widgets otherwise keep drawing with the old code until their timeline runs out.
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+        #if os(iOS)
+        ControlCenter.shared.reloadAllControls()
+        #endif
         #if DEBUG
         // `-SkiesDemoPeople YES`: eight people (in memory only) to see layouts that kick in past five.
         if UserDefaults.standard.bool(forKey: "SkiesDemoPeople") {
@@ -191,6 +232,21 @@ struct Person: Codable, Identifiable, Hashable {
     }
     var everyone: Bool { team.count == list.count }
 
+    /// Who's shown: everyone, or you and the people in the tag being looked at.
+    var visible: [Person] { scope.map { s in list.filter { $0.isHome || $0.has(s) } } ?? list }
+    var scopeTag: PersonTag? { scope.flatMap(Tags.named) }
+    /// Tags someone has, in catalogue order, for the scope menus.
+    var usedTags: [PersonTag] { Tags.all.filter { t in list.contains { $0.has(t.id) } } }
+
+    /// Follow the tag a Focus asked for (Work focus → Team), or everyone when that Focus ends.
+    func applyFocus() { setScope(Tags.focused.flatMap { Tags.named($0)?.id }) }
+
+    /// Look at one tag: show its people and plan with exactly them. Nil goes back to everyone.
+    func setScope(_ tag: String?) {
+        scope = tag
+        picked = tag.map { t in Set(list.filter { $0.has(t) }.map(\.id)) } ?? []
+    }
+
     func toggle(_ p: Person) {
         guard !p.isHome else { return }
         if picked.contains(p.id) { picked.remove(p.id) } else { picked.insert(p.id) }
@@ -210,6 +266,9 @@ struct Person: Codable, Identifiable, Hashable {
         runsCache.removeAll()
         picked = picked.filter { id in list.contains { $0.id == id } }
         guard persists else { return }
-        UserDefaults.standard.set(try? JSONEncoder().encode(list), forKey: Self.key)
+        UserDefaults.skies.set(try? JSONEncoder().encode(list), forKey: Self.key)
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 }

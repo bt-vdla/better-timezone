@@ -127,6 +127,20 @@ func sunPosition(_ p: Person, _ minutes: Double) -> (elev: Double, hourAngle: Do
 }
 
 /// Low-precision lunar position, good to about a degree: plenty for a sky.
+/// Where on Earth the sun is straight overhead at this moment (degrees).
+func subsolar(_ minutes: Double) -> (lat: Double, lon: Double) {
+    let d = j2000(minutes), s = solarEquatorial(d)
+    var lon = (s.ra / rad - (280.46061837 + 360.98564736629 * d)).truncatingRemainder(dividingBy: 360)
+    if lon > 180 { lon -= 360 } else if lon < -180 { lon += 360 }
+    return (s.dec / rad, lon)
+}
+
+/// The sun's height (degrees) over any place, from the subsolar point: enough for a day/night map.
+func sunHeight(lat: Double, lon: Double, below s: (lat: Double, lon: Double)) -> Double {
+    let r = Double.pi / 180
+    return asin(sin(lat * r) * sin(s.lat * r) + cos(lat * r) * cos(s.lat * r) * cos((lon - s.lon) * r)) / r
+}
+
 func moonPosition(_ p: Person, _ minutes: Double) -> (elev: Double, hourAngle: Double) {
     let d = j2000(minutes)
     let L = (218.316 + 13.176396 * d) * rad, M = (134.963 + 13.064993 * d) * rad, F = (93.272 + 13.229350 * d) * rad
@@ -221,4 +235,21 @@ func status(_ p: Person, _ l: Local) -> (String, RGB) {
         if (19..<20.5).contains(f) { return ("Dinner time", orange) }
         return ("Good time to call", green)
     }
+}
+
+// MARK: - Next shared window
+
+/// The next stretch (minutes since 1970) when everyone in `team` is free, starting from `after` (or now, if inside one).
+func nextWindow(_ team: [Person], mode: Person.Kind?, after m: Double) -> (start: Double, end: Double)? {
+    guard let home = team.first(where: \.isHome) ?? team.first else { return nil }
+    let runs = freeRuns(team, from: dayStart(home.tz, m), slots: 96 * 8, mode: mode)
+    return runs.first { $0.upperBound > m }.map { ($0.lowerBound, $0.upperBound) }
+}
+
+func startText(_ m: Double, people: [Person]) -> String {
+    guard let home = people.first(where: \.isHome) ?? people.first else { return "" }
+    let l = Local(home.tz, m)
+    let days = l.dn - Local(home.tz, nowMinutes()).dn
+    let day = days == 0 ? "" : days == 1 ? "tomorrow " : Calendar.current.shortWeekdaySymbols[l.wd] + " "
+    return "\(day)\(clock(l)) \(ampm(l.h))"
 }

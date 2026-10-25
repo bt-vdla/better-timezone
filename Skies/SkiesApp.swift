@@ -37,5 +37,9 @@ struct RootView: View {
             }
         }
         .animation(.easeOutStrong(0.4), value: onboarded)
+        // Widgets open skies://person/<id> to land on that person's page.
+        .onOpenURL { url in
+            if url.host == "person", let id = UUID(uuidString: url.lastPathComponent) { people.focus = id }
+        }
     }
 }

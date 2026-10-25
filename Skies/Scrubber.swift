@@ -3,7 +3,6 @@ import SwiftUI
 let pxPerMinute = 72.0 / 60
 private let bound = 48.0 * 60
 
-func nowMinutes(_ d: Date = .now) -> Double { d.timeIntervalSince1970 / 60 }
 func snap(_ m: Double) -> Double { (m / 15).rounded() * 15 }
 
 /// Where the scrubber is, as a pure function of time, so the view never mutates state per frame.
