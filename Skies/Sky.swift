@@ -127,20 +127,6 @@ func sunPosition(_ p: Person, _ minutes: Double) -> (elev: Double, hourAngle: Do
 }
 
 /// Low-precision lunar position, good to about a degree: plenty for a sky.
-/// Where on Earth the sun is straight overhead at this moment (degrees).
-func subsolar(_ minutes: Double) -> (lat: Double, lon: Double) {
-    let d = j2000(minutes), s = solarEquatorial(d)
-    var lon = (s.ra / rad - (280.46061837 + 360.98564736629 * d)).truncatingRemainder(dividingBy: 360)
-    if lon > 180 { lon -= 360 } else if lon < -180 { lon += 360 }
-    return (s.dec / rad, lon)
-}
-
-/// The sun's height (degrees) over any place, from the subsolar point: enough for a day/night map.
-func sunHeight(lat: Double, lon: Double, below s: (lat: Double, lon: Double)) -> Double {
-    let r = Double.pi / 180
-    return asin(sin(lat * r) * sin(s.lat * r) + cos(lat * r) * cos(s.lat * r) * cos((lon - s.lon) * r)) / r
-}
-
 func moonPosition(_ p: Person, _ minutes: Double) -> (elev: Double, hourAngle: Double) {
     let d = j2000(minutes)
     let L = (218.316 + 13.176396 * d) * rad, M = (134.963 + 13.064993 * d) * rad, F = (93.272 + 13.229350 * d) * rad

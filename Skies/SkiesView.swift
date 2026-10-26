@@ -81,10 +81,11 @@ struct PressScale: ButtonStyle {
 }
 
 enum Sheet: Identifiable {
-    case people, person(UUID), planner
+    case people, person(UUID), planner, search
     var id: String {
         switch self {
         case .people: "people"
+        case .search: "search"
         case .planner: "planner"
         case .person(let id): id.uuidString
         }
@@ -144,6 +145,11 @@ struct SkiesView: View {
             case .people: PeopleSheet(people: people, model: model, holidays: holidays)
             case .person(let id): PersonPage(people: people, model: model, holidays: holidays, id: id)
             case .planner: PlannerSheet(people: people, model: model)
+            case .search:
+                SearchSheet(people: people, model: model) { id in
+                    // Let the search sheet close before the person's page opens in its place.
+                    Task { try? await Task.sleep(for: .milliseconds(350)); sheet = .person(id) }
+                }
             }
         }
         .task { await people.fillRegions() }
@@ -240,6 +246,7 @@ struct SkiesView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(when)
                     .sf(34, .semibold).tracking(-0.5).monospacedDigit()
+                    .lineLimit(1).minimumScaleFactor(0.6)
                     .accessibilityAddTraits(.updatesFrequently)
                 // ponytail: String, not Text(_:format:), which swaps in the device time zone.
                 Text(Date(timeIntervalSince1970: m * 60)
@@ -253,12 +260,21 @@ struct SkiesView: View {
                     if showNow {
                         Button("Now", action: model.goNow)
                             .sf(15, .semibold)
+                            .fixedSize()
                             .foregroundStyle(Color(hex: 0x1D1603))
                             .padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 40)
                             .glassEffect(.regular.tint(.sun).interactive(), in: Capsule())
                             .glassEffectID("now", in: glass)
                             .buttonStyle(.plain)
                     }
+                    Button { sheet = .search } label: {
+                        Image(systemName: "magnifyingglass").font(.sf(15, .semibold)).frame(width: 40, height: 40)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.interactive(), in: Circle())
+                    .glassEffectID("search", in: glass)
+                    .keyboardShortcut("f", modifiers: .command)
+                    .accessibilityLabel("Search people, or type a time")
                     ScopeMenu(people: people)
                         .glassEffectID("scope", in: glass)
                     Button { sheet = .people } label: {

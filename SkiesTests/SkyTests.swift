@@ -202,13 +202,66 @@ struct SkyTests {
         #expect(!t.allows(Local(utc, mondayNoonUTC - 60 - 2 * 1440), workdays: [1, 2, 3, 4, 5]))
     }
 
-    @Test func worldLine() {
-        // Noon UTC, 19 October: the sun runs about 15 minutes fast, so it's overhead ~3.7° west, at about −10° latitude.
-        let s = subsolar(mondayNoonUTC)
-        #expect(s.lat > -11 && s.lat < -9)
-        #expect(s.lon > -6 && s.lon < -1.5)
-        #expect(sunHeight(lat: s.lat, lon: s.lon, below: s) > 89.9)
-        #expect(sunHeight(lat: 0, lon: 180, below: s) < -70)
+    @Test func typedTimes() {
+        // Monday 5:30 PM in Hyderabad.
+        let now = mondayNoonUTC
+        func at(_ q: String) -> (h: Int, m: Int, wd: Int, who: String?)? {
+            guard let j = JumpParser.parse(q, people: team, now: now) else { return nil }
+            let l = Local((j.person ?? home).tz, j.minutes)
+            return (l.h, l.m, l.wd, j.person?.city)
+        }
+        #expect(at("8pm")! == (20, 0, 1, nil))
+        #expect(at("3pm")! == (15, 0, 2, nil))            // gone today, so tomorrow
+        #expect(at("9")! == (21, 0, 1, nil))              // the next 9 o'clock
+        #expect(at("noon")! == (12, 0, 2, nil))
+        #expect(at("6:45 pm")! == (18, 45, 1, nil))
+        #expect(at("London 3pm")! == (15, 0, 1, "London"))
+        #expect(at("fri 9am Dubai")! == (9, 0, 5, "Dubai"))
+        #expect(at("san francisco 9am")! == (9, 0, 1, "San Francisco"))
+        #expect(at("fri 3")! == (15, 0, 5, nil))          // a named day reads 1–6 as afternoon
+        #expect(at("tomorrow")! == (9, 0, 2, nil))
+        #expect(JumpParser.parse("in 2h", people: team, now: now)?.minutes == now + 120)
+        #expect(JumpParser.parse("+90m", people: team, now: now)?.minutes == now + 90)
+        #expect(JumpParser.parse("Partners", people: team, now: now) == nil)
+        #expect(JumpParser.parse("25pm", people: team, now: now) == nil)
+    }
+
+    @Test func placesAnywhere() {
+        let now = mondayNoonUTC
+        func at(_ q: String) -> (h: Int, wd: Int, tz: String, mine: Int)? {
+            guard let j = JumpParser.parse(q, people: team, now: now), let z = j.zone else { return nil }
+            return (Local(z.tz, j.minutes).h, Local(z.tz, j.minutes).wd, z.tz.identifier, Local(home.tz, j.minutes).h)
+        }
+        // Home is Hyderabad here, so India 3pm is gone today and means tomorrow.
+        #expect(at("india 3pm")! == (15, 2, "Asia/Kolkata", 15))
+        #expect(at("3pm tokyo")! == (15, 2, "Asia/Tokyo", 11))     // 3 PM Tokyo is 11:30 AM in Hyderabad
+        #expect(at("3pm pst")!.tz == "America/Los_Angeles")
+        #expect(at("new york 9am")!.tz == "America/New_York")
+        #expect(at("germany 9am")!.tz == "Europe/Berlin")
+        #expect(Places.zone(named: "Bengaluru")?.tz.identifier == "Asia/Kolkata")
+        // Spans from now, with or without a place.
+        let span = { (q: String) in JumpParser.parse(q, people: team, now: now) }
+        #expect(span("india 3 hours from now")?.minutes == now + 180)
+        #expect(span("india 3 hours from now")?.zone?.tz.identifier == "Asia/Kolkata")
+        #expect(span("tokyo in 90 mins")?.minutes == now + 90)
+        #expect(span("an hour from now")?.minutes == now + 60)
+        #expect(span("london in half an hour")?.zone?.tz.identifier == "Europe/London")   // Partners' clock
+        #expect(span("london in half an hour")?.minutes == now + 30)
+        #expect(span("2h ago")?.minutes == now - 120)
+        #expect(Ask.placeWords("Visakhapatnam 3pm") == "visakhapatnam")
+    }
+
+    @Test func questions() {
+        let now = mondayNoonUTC   // Monday 5:30 PM Hyderabad, 7:00 AM Georgetown, 5:00 AM San Francisco
+        let first = { (q: String) in Ask.hits(q, people: team, now: now).first?.title ?? "" }
+        #expect(first("is design review awake?").hasPrefix("No, Design review's asleep"))
+        #expect(first("Is Investor up").hasPrefix("Yes"))
+        #expect(first("when can I speak to partners?").hasPrefix("Free with Partners"))
+        #expect(first("when can i talk to everyone").contains("everyone"))
+        #expect(first("what time is it in tokyo").hasSuffix("in Tokyo"))
+        #expect(first("tokyo").hasSuffix("in Tokyo"))
+        #expect(Ask.target("my team", team) == nil)   // no tags on the defaults
+        #expect(Ask.target("partners and investor", team)?.members.count == 2)
     }
 
     @Test func durations() {

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		05329B5F8377E21577539621 /* countries.csv in Resources */ = {isa = PBXBuildFile; fileRef = 3D6F2E34E89098D01F37622D /* countries.csv */; };
 		0CFE0CCAE56901EE6BB017FA /* airports.csv in Resources */ = {isa = PBXBuildFile; fileRef = 814677788BBC53D08024437E /* airports.csv */; };
 		252D981C9F5C1BCADACA27EA /* SkyBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC6F410F694BB5D05F0E7216 /* SkyBackground.swift */; };
 		2F097AA97DE0273D6E9FAECD /* MoreWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75A86C47666F8AF4839DE893 /* MoreWidgets.swift */; };
@@ -23,16 +24,19 @@
 		83C6CAD3F3C8C0F6A921D36E /* Notch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905E5552CEB98ECDD990705D /* Notch.swift */; };
 		8450FEC83605BDB01AE3D1A0 /* Tags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8263C47AF85C316D185C69 /* Tags.swift */; };
 		8AA3899D2173BE0A61C27ACF /* TagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE1B5104745C19131380477 /* TagViews.swift */; };
+		91428FAA08056101A078EC3B /* AskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC9F6C2BB65675DBB943143 /* AskView.swift */; };
 		9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */; };
 		A27AD70BB7E2C83EC747CDE3 /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4010E04CB8567AA0E800D21E /* Intents.swift */; };
 		A287DA5E189072960DAABBAA /* Sky.metal in Sources */ = {isa = PBXBuildFile; fileRef = 25801DA363D61723BF70C5C8 /* Sky.metal */; };
 		A2E88BC37953DBC3004D127E /* Planner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A97F7DEB4B5653CD60056 /* Planner.swift */; };
 		A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7EDFE2F3B3ADC9842BEF2A /* SkiesApp.swift */; };
+		A9E85E48CD9D3A1958E411B8 /* Search.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8D6F38F01A6FCE41E4AF2BE /* Search.swift */; };
 		AD115356A2B66E96BC1A5FDE /* Sky.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A108332937315E09541041 /* Sky.swift */; };
 		BC2436F13894435E459D21A1 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CCD592752A86F92C3F30E8 /* Model.swift */; };
 		C1E76C99E8F61B4CA646A3A3 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CCD592752A86F92C3F30E8 /* Model.swift */; };
 		C91D4EE1B328F0662682DAC3 /* Tags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8263C47AF85C316D185C69 /* Tags.swift */; };
 		DBC88C2693FE158904B1EE8B /* Airports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */; };
+		DC3CBBB5561294ADAF1D7639 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1717EDF7CC0B3347D6852AB6 /* Assets.xcassets */; };
 		EA42229AF8CA08E514565C68 /* Connect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C2C3D539A055F95B3FDD67 /* Connect.swift */; };
 		EAAD1F318C1988BD6C6E1441 /* SkyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02152E27B4A61FA235A856E /* SkyTests.swift */; };
 		F6EB8F75408876A5B70C0AE3 /* Moments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054A2BEE736248D2845A6FED /* Moments.swift */; };
@@ -77,10 +81,13 @@
 		054A2BEE736248D2845A6FED /* Moments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Moments.swift; sourceTree = "<group>"; };
 		121E59F83ED10F9C185D8F83 /* SkiesWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SkiesWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		153C2A3ACB41F09F0F2725B3 /* SkiesWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SkiesWidgets.entitlements; sourceTree = "<group>"; };
+		1717EDF7CC0B3347D6852AB6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1B8263C47AF85C316D185C69 /* Tags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tags.swift; sourceTree = "<group>"; };
 		2130ECA90442D24FF9844ECA /* Skies.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Skies.entitlements; sourceTree = "<group>"; };
 		25801DA363D61723BF70C5C8 /* Sky.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Sky.metal; sourceTree = "<group>"; };
 		2D4A97F7DEB4B5653CD60056 /* Planner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Planner.swift; sourceTree = "<group>"; };
+		3CC9F6C2BB65675DBB943143 /* AskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskView.swift; sourceTree = "<group>"; };
+		3D6F2E34E89098D01F37622D /* countries.csv */ = {isa = PBXFileReference; path = countries.csv; sourceTree = "<group>"; };
 		4010E04CB8567AA0E800D21E /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
 		498A51D3E0D5FEC9EFEDB2D5 /* SkiesWidgets-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "SkiesWidgets-macOS.entitlements"; sourceTree = "<group>"; };
 		52CCD592752A86F92C3F30E8 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
@@ -96,6 +103,7 @@
 		905E5552CEB98ECDD990705D /* Notch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Notch.swift; sourceTree = "<group>"; };
 		90BFB6578061984319CE8089 /* SkiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesView.swift; sourceTree = "<group>"; };
 		A02152E27B4A61FA235A856E /* SkyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTests.swift; sourceTree = "<group>"; };
+		A8D6F38F01A6FCE41E4AF2BE /* Search.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Search.swift; sourceTree = "<group>"; };
 		B923DE91AC700FA3980B1DA6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CECDCA57ADE21212596C4E48 /* SharedIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedIntents.swift; sourceTree = "<group>"; };
 		D29562640800AF3AEF507AA0 /* Scrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scrubber.swift; sourceTree = "<group>"; };
@@ -131,7 +139,10 @@
 			children = (
 				814677788BBC53D08024437E /* airports.csv */,
 				8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */,
+				3CC9F6C2BB65675DBB943143 /* AskView.swift */,
+				1717EDF7CC0B3347D6852AB6 /* Assets.xcassets */,
 				01C2C3D539A055F95B3FDD67 /* Connect.swift */,
+				3D6F2E34E89098D01F37622D /* countries.csv */,
 				52CCD592752A86F92C3F30E8 /* Model.swift */,
 				054A2BEE736248D2845A6FED /* Moments.swift */,
 				905E5552CEB98ECDD990705D /* Notch.swift */,
@@ -141,6 +152,7 @@
 				5FD2C742802CE6055413F352 /* PersonPage.swift */,
 				2D4A97F7DEB4B5653CD60056 /* Planner.swift */,
 				D29562640800AF3AEF507AA0 /* Scrubber.swift */,
+				A8D6F38F01A6FCE41E4AF2BE /* Search.swift */,
 				CECDCA57ADE21212596C4E48 /* SharedIntents.swift */,
 				E765FD9AE1B82E95BD66BB68 /* Skies-macOS.entitlements */,
 				2130ECA90442D24FF9844ECA /* Skies.entitlements */,
@@ -294,7 +306,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DC3CBBB5561294ADAF1D7639 /* Assets.xcassets in Resources */,
 				7BC68B046F8F94D6F0BA51D5 /* airports.csv in Resources */,
+				05329B5F8377E21577539621 /* countries.csv in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -322,6 +336,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DBC88C2693FE158904B1EE8B /* Airports.swift in Sources */,
+				91428FAA08056101A078EC3B /* AskView.swift in Sources */,
 				EA42229AF8CA08E514565C68 /* Connect.swift in Sources */,
 				BC2436F13894435E459D21A1 /* Model.swift in Sources */,
 				F6EB8F75408876A5B70C0AE3 /* Moments.swift in Sources */,
@@ -332,6 +347,7 @@
 				67F9A043D98F205CA87C74B8 /* PersonPage.swift in Sources */,
 				A2E88BC37953DBC3004D127E /* Planner.swift in Sources */,
 				5E73686C0862473F6D06557A /* Scrubber.swift in Sources */,
+				A9E85E48CD9D3A1958E411B8 /* Search.swift in Sources */,
 				7E685F8A75441B891C6AAD46 /* SharedIntents.swift in Sources */,
 				A40385E3D23E9A8CBD8D2079 /* SkiesApp.swift in Sources */,
 				FA6060891A86BE5DE8B00F4C /* SkiesView.swift in Sources */,
@@ -457,7 +473,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SkiesWidgets/SkiesWidgets-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = SkiesWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -484,7 +500,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SkiesWidgets/SkiesWidgets-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = SkiesWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -577,7 +593,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Skies/Skies-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
@@ -617,7 +633,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Skies/Skies-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;

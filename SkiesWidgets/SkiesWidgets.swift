@@ -9,7 +9,6 @@ struct SkiesWidgets: WidgetBundle {
         StackWidget()
         NextWindowWidget()
         ReachWidget()
-        WorldWidget()
         #if os(iOS)
         AwakeControl()
         WindowLiveActivity()

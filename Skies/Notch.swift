@@ -55,9 +55,9 @@ import Carbon.HIToolbox
 
 /// Borderless, never activates the app, can still take Esc and arrow keys while open.
 final class NotchPanel: NSPanel {
-    var onKey: (UInt16) -> Bool = { _ in false }
+    var onKey: (NSEvent) -> Bool = { _ in false }
     override var canBecomeKey: Bool { true }
-    override func keyDown(with event: NSEvent) { if !onKey(event.keyCode) { super.keyDown(with: event) } }
+    override func keyDown(with event: NSEvent) { if !onKey(event) { super.keyDown(with: event) } }
 }
 
 /// What the notch view draws. The shape and its content open separately, so the shape can lead.
@@ -71,6 +71,12 @@ final class NotchPanel: NSPanel {
     /// The hardware notch: its width (0 on displays without one) and the menu bar's height beside it.
     var notch = CGSize(width: 0, height: 24)
     let model = Scrubber()
+    /// The notch's Ask field. Once something's typed, its answers take the skies' place.
+    var query = ""
+    var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
+    /// Counts openings, to show a different example question each time.
+    var opens = 0
+    let places = PlaceLookup()
 }
 
 /// Owns the panel over the notch, the hotkey, and the open/close choreography.
@@ -101,7 +107,7 @@ final class NotchPanel: NSPanel {
         panel.hasShadow = false
         panel.ignoresMouseEvents = true
         panel.isReleasedWhenClosed = false
-        panel.onKey = { [weak self] code in self?.key(code) ?? false }
+        panel.onKey = { [weak self] event in self?.key(event) ?? false }
         let host = NSHostingView(rootView: NotchView(state: state, people: People.shared))
         host.sizingOptions = []
         panel.contentView = host
@@ -135,6 +141,7 @@ final class NotchPanel: NSPanel {
         guard let panel, !state.shapeOpen else { return }
         closing?.cancel()
         state.model.jumpNow()
+        state.opens += 1
         place()
         panel.ignoresMouseEvents = false
         panel.makeKeyAndOrderFront(nil)
@@ -156,6 +163,7 @@ final class NotchPanel: NSPanel {
         withAnimation(reduce ? .easeOutStrong(0.2) : Self.closeSpring.delay(0.04)) { state.shapeOpen = false }
         monitors.forEach(NSEvent.removeMonitor)
         monitors = []
+        endSearch()
         closing = Task {
             try? await Task.sleep(for: .milliseconds(420))
             guard !Task.isCancelled, !state.shapeOpen else { return }
@@ -178,7 +186,7 @@ final class NotchPanel: NSPanel {
         }
     }
 
-    /// Clicks anywhere else close it; two-finger swipes over it scrub time.
+    /// Clicks anywhere else close it; two-finger swipes over it scrub time; typing starts a question.
     private func watchOutside() {
         if let m = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown], handler: { _ in
             MainActor.assumeIsolated { NotchController.shared.close() }
@@ -197,8 +205,9 @@ final class NotchPanel: NSPanel {
         }) { monitors.append(m) }
     }
 
-    private func key(_ code: UInt16) -> Bool {
-        switch Int(code) {
+    /// Keys that reach the panel itself (the Ask field normally has them): Esc, ← →, Space.
+    private func key(_ event: NSEvent) -> Bool {
+        switch Int(event.keyCode) {
         case kVK_Escape: close()
         case kVK_LeftArrow: state.model.step(-15)
         case kVK_RightArrow: state.model.step(15)
@@ -206,6 +215,12 @@ final class NotchPanel: NSPanel {
         default: return false
         }
         return true
+    }
+
+    /// Clears the question, so the skies come back.
+    func endSearch() {
+        guard !state.query.isEmpty else { return }
+        withAnimation(Self.reduceMotion ? .easeOutStrong(0.2) : Self.earSpring) { state.query = "" }
     }
 }
 
@@ -306,9 +321,16 @@ struct NotchView: View {
         listed ? 640 : min(NotchController.size.width - 40, max(560, CGFloat(people.visible.count) * 140 + 36))
     }
     /// Strip beside the notch, the skies, the tape. A list grows a row per two people.
+    /// Asking swaps skies and tape for the field and up to four answers.
     private var openHeight: CGFloat {
+        let strip = max(state.notch.height, 24) + AskView.Compact.gap
+        let gap = AskView.Compact.gap
+        if state.searching {
+            let hits = Ask.hits(state.query, people: people.list, now: nowMinutes(), extra: state.places.zones)
+            return strip + AskView.Compact.height(hits) + gap
+        }
         let skies = listed ? CGFloat((people.visible.count + 1) / 2) * 34 - 6 : 64
-        return max(state.notch.height, 24) + 6 + skies + 6 + 34 + 6
+        return strip + AskView.Compact.field + gap + skies + gap + 34 + gap
     }
 
     var body: some View {
@@ -354,6 +376,8 @@ struct NotchView: View {
         .foregroundStyle(.white)
         .preferredColorScheme(.dark)
         .dynamicTypeSize(...DynamicTypeSize.large)
+        // Typing the first letter swaps skies for answers; clearing brings them back, on the notch's own spring.
+        .animation(NotchController.reduceMotion ? .easeOutStrong(0.2) : NotchController.earSpring, value: state.searching)
     }
 
     // MARK: Closed: only when it matters
@@ -389,7 +413,7 @@ struct NotchView: View {
         let delta = (m - now).rounded()
         let when = abs(delta) < 1 ? "Right now" : delta > 0 ? "In \(dur(delta))" : "\(dur(delta)) ago"
         let date = Date(timeIntervalSince1970: m * 60).formatted(Date.FormatStyle(timeZone: home.tz).weekday(.abbreviated).day())
-        return VStack(spacing: 6) {
+        return VStack(spacing: AskView.Compact.gap) {
             // The strip beside the notch carries what used to be two rows: when on the left, the overlap on the right.
             HStack(spacing: 8) {
                 HStack(spacing: 6) {
@@ -410,23 +434,34 @@ struct NotchView: View {
             .padding(.horizontal, 20)
             .frame(height: max(state.notch.height, 24))
 
-            Group {
-                if listed {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)], spacing: 6) { skies(m: m, time: time) }
-                } else {
-                    HStack(spacing: 8) { skies(m: m, time: time) }
-                }
+            // Ask is the way in: always here, already focused, with real questions turning over in it.
+            AskView(query: Bindable(state).query, people: people, places: state.places, compact: true, examples: false,
+                    placeholder: prompt(time), emptyKey: scrubKey, refocus: state.contentShown, run: run) {
+                NotchController.shared.close()
             }
             .padding(.horizontal, 14)
 
-            Tape(m: m, now: now, hourKey: Int(((m + Double(h.off)) / 60).rounded(.down)),
-                 home: home, team: people.team, all: people.list, mode: people.mode)
-                .frame(height: 34)
-                .gesture(DragGesture(minimumDistance: 4)
-                    .onChanged { state.model.dragChanged($0, width: openWidth) }
-                    .onEnded { state.model.dragEnded($0) })
+            if !state.searching {
+                Group {
+                    if listed {
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)], spacing: 6) { skies(m: m, time: time) }
+                    } else {
+                        HStack(spacing: 8) { skies(m: m, time: time) }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .transition(.opacity)
+
+                Tape(m: m, now: now, hourKey: Int(((m + Double(h.off)) / 60).rounded(.down)),
+                     home: home, team: people.team, all: people.list, mode: people.mode)
+                    .frame(height: 34)
+                    .gesture(DragGesture(minimumDistance: 4)
+                        .onChanged { state.model.dragChanged($0, width: openWidth) }
+                        .onEnded { state.model.dragEnded($0) })
+                    .transition(.opacity)
+            }
         }
-        .padding(.bottom, 6)
+        .padding(.bottom, AskView.Compact.gap)
     }
 
     private func skies(m: Double, time: Double) -> some View {
@@ -467,6 +502,39 @@ struct NotchView: View {
     }
 
     // MARK: Actions
+
+    /// A question that works with your own people: a fresh one each time the notch opens, still while it's open.
+    private func prompt(_ time: Double) -> String {
+        let others = people.list.filter { !$0.isHome }
+        let a = others.first?.name ?? "Amma", b = others.dropFirst().first?.name ?? a
+        let tag = people.usedTags.first?.name.lowercased()
+        let list = ["Is \(a) awake?", "India 3pm", tag.map { "When can I talk to \($0)?" } ?? "When can I talk to everyone?",
+                    "\(b) fri 9am", "Time in Tokyo", "Is \(b) free?"]
+        return list[state.opens % list.count]
+    }
+
+    /// With the field empty, the notch's own keys still move time.
+    private func scrubKey(_ key: KeyEquivalent) -> Bool {
+        switch key {
+        case .leftArrow: state.model.step(-15)
+        case .rightArrow: state.model.step(15)
+        case .space: state.model.goNow()
+        default: return false
+        }
+        return true
+    }
+
+    /// An answer picked in the notch: times spring the skies there; a person opens their page in the window.
+    private func run(_ h: Hit) {
+        guard let action = h.action else { return }
+        if case .open = action {
+            perform(action, people: people, model: state.model) { id in people.focus = id; MainWindow.shared.show() }
+            NotchController.shared.close()
+        } else {
+            perform(action, people: people, model: state.model) { _ in }
+            NotchController.shared.endSearch()
+        }
+    }
 
     /// A tile click reaches them by their favourite way; without a contact it picks them for the overlap.
     private func reach(_ p: Person) {

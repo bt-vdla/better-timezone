@@ -15,9 +15,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.btstd.skies
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: "6.0"
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "2"
+        CURRENT_PROJECT_VERSION: "3"
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Skies
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -80,7 +81,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.btstd.skies.widgets
         SWIFT_VERSION: "6.0"
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "2"
+        CURRENT_PROJECT_VERSION: "3"
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "Apple Development"
         CODE_SIGN_ENTITLEMENTS: SkiesWidgets/SkiesWidgets.entitlements
