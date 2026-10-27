@@ -123,6 +123,6 @@ enum Clocks {
         return ("\(who) clocks \(move) \(when)", "Clocks \(move) \(short)",
                 // Already changed: their time now carries the "went back" cue. Coming up: the gap after it.
                 past ? "time in \(b.you ? (list.first { !$0.isHome }?.name ?? "london") : named)"
-                     : "after \(named == "my" ? "my" : named + "'s") clocks \(b.change.shift > 0 ? "go forward" : "go back")")
+                     : "\(b.you ? "my" : owner(named)) clock change")
     }
 }

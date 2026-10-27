@@ -10,6 +10,17 @@ constant float ghostAt[4] = { 0.55, 0.95, 1.35, 1.8 };
 constant float ghostSize[4] = { 14.0, 28.0, 9.0, 40.0 };
 constant float3 ghostTint[4] = { float3(0.6, 0.9, 1.0), float3(0.9, 0.7, 1.0), float3(1.0, 0.85, 0.6), float3(0.6, 1.0, 0.85) };
 
+/// Two independent random values per pixel from its exact position (PCG 2D): no lattice, so grain reads as grain.
+static float2 grain2(float2 p, float seed) {
+    uint2 v = as_type<uint2>(p) ^ uint2(as_type<uint>(seed), 0x9E3779B9u);
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * 1664525u; v.y += v.x * 1664525u;
+    v ^= v >> 16u;
+    v.x += v.y * 1664525u; v.y += v.x * 1664525u;
+    v ^= v >> 16u;
+    return float2(v) / 4294967295.0;
+}
+
 static float hash21(float2 p) {
     p = fract(p * float2(123.34, 456.21));
     p += dot(p, p + 45.32);
@@ -101,7 +112,13 @@ static float hash21(float2 p) {
     }
     col = mix(col, sunCol, (1.0 - smoothstep(sr - 1.0, sr + 1.0, ds)) * up);
 
-    // Static dither so dark gradients don't band on 8-bit panels.
-    col += (hash21(pos + seed) - 0.5) * (2.0 / 255.0);
+    // Fine film grain, still: two random values averaged for a soft, photographic spread, strongest in the midtones
+    // where real grain shows and gentler in deep night and bright day so text on top stays clean. It also keeps dark
+    // gradients from banding.
+    float lum = dot(col, float3(0.2126, 0.7152, 0.0722));
+    float2 g = grain2(pos, seed);
+    float grain = g.x + g.y - 1.0;
+    float amount = 0.016 + 0.022 * smoothstep(0.02, 0.3, lum) * (1.0 - smoothstep(0.6, 0.95, lum));
+    col += grain * amount;
     return half4(half3(col), 1.0);
 }

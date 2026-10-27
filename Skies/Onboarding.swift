@@ -2,7 +2,7 @@ import SwiftUI
 import MapKit
 import Contacts
 
-/// First run: welcome on a live sky, where you are, who you talk to, what to call them.
+/// First run: welcome on a live sky, where you are, who you talk to, what to call them, and what you can ask.
 /// Learning the gestures happens afterwards, on the real screen (SkiesView's coaching).
 struct Onboarding: View {
     let people: People
@@ -18,22 +18,24 @@ struct Onboarding: View {
     @State private var pickingContact = false
     @State private var began = Date.now
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.offscreen) private var offscreen
     @Environment(\.dynamicTypeSize) private var typeSize
 
     enum Search: Identifiable { case you, add; var id: Self { self } }
 
     var body: some View {
         ZStack {
-            TimelineView(.animation(minimumInterval: reduceMotion ? 1 : step == 0 ? nil : 1.0 / 60)) { ctx in
-                SkyBackground(person: you, minutes: skyMinutes(ctx.date),
-                              time: reduceMotion ? 0 : ctx.date.timeIntervalSinceReferenceDate, flare: 1).ignoresSafeArea()
+            // The welcome sky runs through a day at 60 fps: ambient motion, so half the GPU work of 120 looks the same.
+            TimelineView(.animation(minimumInterval: step == 0 && !reduceMotion ? 1.0 / 60 : 1, paused: offscreen)) { ctx in
+                SkyBackground(person: you, minutes: skyMinutes(ctx.date), flare: 1, twinkle: true).ignoresSafeArea()
             }
 
             VStack(spacing: 0) {
                 HStack {
                     Spacer()
                     if step > 0 {
-                        Button("Skip", action: done).sf(15, .medium).buttonStyle(.plain).opacity(0.8)
+                        Button(action: done) { Text("Skip").sf(15, .medium).padding(.horizontal, 12).frame(minHeight: 44) }
+                            .buttonStyle(.whole).opacity(0.8).padding(.trailing, -12)
                     }
                 }
                 .frame(minHeight: 44)
@@ -46,17 +48,17 @@ struct Onboarding: View {
 
                 HStack(spacing: 12) {
                     if step > 0 {
-                        Button { go(-1) } label: {
+                        Button { go(step == 4 && others.isEmpty ? -2 : -1) } label: {
                             Image(systemName: "chevron.left").font(.sf(17, .semibold)).frame(width: 52, height: 52)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.whole)
                         .glassEffect(.regular.interactive(), in: Circle())
                         .accessibilityLabel("Back")
                     }
                     Button(action: next) {
                         Text(primaryTitle).sf(17, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 52)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.whole)
                     .glassEffect(.regular.interactive(), in: Capsule())
                 }
                 .padding(.horizontal, 24).padding(.bottom, 16)
@@ -89,7 +91,8 @@ struct Onboarding: View {
         case 0: scrollsIfNeeded(welcome)
         case 1: scrollsIfNeeded(whereAreYou)
         case 2: whoDoYouTalkTo
-        default: names
+        case 3: names
+        default: scrollsIfNeeded(canDo)
         }
     }
 
@@ -125,9 +128,10 @@ struct Onboarding: View {
                     Text(you.tz.localizedName(for: .generic, locale: .current) ?? you.tzID).sf(15, .regular).opacity(0.75)
                 }
                 if !typeSize.isAccessibilitySize { Spacer() }
-                Button("Change") { search = .you }
-                    .sf(15, .semibold).padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 36)
-                    .buttonStyle(.plain)
+                Button { search = .you } label: {
+                    Text("Change").sf(15, .semibold).padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 36)
+                }
+                    .buttonStyle(.whole)
                     .glassEffect(.regular.interactive(), in: Capsule())
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -156,7 +160,7 @@ struct Onboarding: View {
                         Button { add(s) } label: {
                             Label(s.city, systemImage: "plus").sf(15, .medium).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 40)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.whole)
                         .glassEffect(.regular.interactive(), in: Capsule())
                     }
                 }
@@ -167,12 +171,12 @@ struct Onboarding: View {
                     Button { search = .add } label: {
                         Label("Search", systemImage: "magnifyingglass").sf(15, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.whole)
                     .glassEffect(.regular.interactive(), in: Capsule())
                     Button { pickingContact = true } label: {
                         Label("From Contacts", systemImage: "person.crop.circle").sf(15, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.whole)
                     .glassEffect(.regular.interactive(), in: Capsule())
                 }
                 .padding(.horizontal, 24).padding(.top, 8)
@@ -194,6 +198,42 @@ struct Onboarding: View {
         }
     }
 
+    private var canDo: some View {
+        VStack(spacing: 18) {
+            title("Just ask", "Type a question wherever you see the search field.")
+            VStack(alignment: .leading, spacing: 16) {
+                feature("text.magnifyingglass", "“india 3pm”, “is \(others.first?.cardName ?? "Amma") awake”",
+                        "Times, places, airport codes and people, typos and all.")
+                feature("number", "#family, #work", "Tag people as you type, then ask “find time for #work”.")
+                feature("clock.arrow.2.circlepath", "Clocks changing", "A heads-up days before anyone's daylight saving starts or ends.")
+                #if os(macOS)
+                feature("menubar.rectangle", "\(UserDefaults.standard.string(forKey: "hotkey.label") ?? "⌃⌥S") from anywhere",
+                        "Opens Skies under the notch. Select a time in any app and convert it from the Services menu.")
+                #else
+                feature("square.grid.2x2", "Widgets", "Everyone's sky on your Home Screen, Lock Screen and Control Centre.")
+                #endif
+                Divider().overlay(.white.opacity(0.2))
+                CalendarToggle().sf(16, .semibold).tint(.white.opacity(0.5))
+                Text("Free times leave out your meetings. Your calendar stays on this device.").sf(13, .regular).opacity(0.7)
+            }
+            .padding(20)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 26))
+            .padding(.horizontal, 24)
+            Spacer()
+        }
+    }
+
+    private func feature(_ icon: String, _ head: String, _ line: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: icon).sf(17, .semibold).frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(head).sf(16, .semibold)
+                Text(line).sf(14, .regular).opacity(0.8)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private func title(_ t: String, _ sub: String) -> some View {
         VStack(spacing: 8) {
             Text(t).sf(32, .semibold).tracking(-0.5)
@@ -212,6 +252,7 @@ struct Onboarding: View {
         case 0: "Get started"
         case 1: "This is me"
         case 2: others.isEmpty ? "Just me for now" : "Continue"
+        case 3: "Continue"
         default: "Start"
         }
     }
@@ -228,7 +269,7 @@ struct Onboarding: View {
     }
 
     private func next() {
-        if step == 3 || (step == 2 && others.isEmpty) { finish() } else { go(1) }
+        if step == 4 { finish() } else { go(step == 2 && others.isEmpty ? 2 : 1) }
     }
 
     private func finish() {
@@ -309,7 +350,7 @@ private struct MiniBand: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { ctx in
             let m = nowMinutes(ctx.date), l = Local(person.tz, m)
-            let time = Text("\(clock(l)) \(ampm(l.h))").sf(22, .light).monospacedDigit()
+            let time = Text("\(hm(l))").sf(22, .light).monospacedDigit()
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(person.city).sf(18, .semibold)
@@ -321,7 +362,7 @@ private struct MiniBand: View {
                 Button(action: remove) {
                     Image(systemName: "xmark").font(.sf(12, .bold)).frame(width: 28, height: 28)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.whole)
                 .glassEffect(.regular.interactive(), in: Circle())
                 .accessibilityLabel("Remove \(person.city)")
             }

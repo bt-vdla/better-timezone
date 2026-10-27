@@ -93,7 +93,7 @@ struct ReachModule: View {
                         .padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 60)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.whole)
                     .glassEffect(.regular.tint(.mint.opacity(0.35)).interactive(), in: RoundedRectangle(cornerRadius: 18))
                 }
                 ForEach(contact.numbers, id: \.self) { n in
@@ -133,7 +133,7 @@ struct ReachModule: View {
                                 }
                             }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.whole)
                     .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 14))
                     .contextMenu {
                         if contact.favourite == channel {

@@ -20,9 +20,36 @@ struct Local {
     }
 }
 
-func h12(_ h: Int) -> Int { (h + 11) % 12 + 1 }
-func ampm(_ h: Int) -> String { h < 12 ? "AM" : "PM" }
-func clock(_ l: Local) -> String { "\(h12(l.h)):" + String(format: "%02d", l.m) }
+/// 12- or 24-hour clocks: the system's choice unless Settings overrides it ("system", "12", "24" in `timeFormat`).
+enum TimeFormat {
+    static let key = "timeFormat"
+    nonisolated(unsafe) static var twentyFour = read()
+
+    static func read() -> Bool {
+        switch UserDefaults.skies.string(forKey: key) {
+        case "12": false
+        case "24": true
+        default: Locale.current.hourCycle == .zeroToTwentyThree || Locale.current.hourCycle == .oneToTwentyFour
+        }
+    }
+}
+
+/// The hour as shown on a clock face: 3 (or 15 on a 24-hour clock).
+func h12(_ h: Int) -> Int { TimeFormat.twentyFour ? h : (h + 11) % 12 + 1 }
+/// "AM"/"PM", or nothing on a 24-hour clock.
+func ampm(_ h: Int) -> String { TimeFormat.twentyFour ? "" : h < 12 ? "AM" : "PM" }
+/// "3:05", or "15:05".
+func clock(_ l: Local, twentyFour: Bool = TimeFormat.twentyFour) -> String {
+    twentyFour ? String(format: "%02d:%02d", l.h, l.m) : "\((l.h + 11) % 12 + 1):" + String(format: "%02d", l.m)
+}
+/// "3:05 PM", or "15:05": the whole time, for sentences.
+func hm(_ l: Local, twentyFour: Bool = TimeFormat.twentyFour) -> String {
+    twentyFour ? clock(l, twentyFour: true) : "\(clock(l, twentyFour: false)) \(l.h < 12 ? "AM" : "PM")"
+}
+/// "3 PM", or "15:00": an hour on its own.
+func hourText(_ h: Int, twentyFour: Bool = TimeFormat.twentyFour) -> String {
+    twentyFour ? String(format: "%02d:00", h) : "\((h + 11) % 12 + 1) \(h < 12 ? "AM" : "PM")"
+}
 
 func dur(_ minutes: Double) -> String {
     let mins = Int(abs(minutes).rounded())
@@ -33,12 +60,24 @@ func dur(_ minutes: Double) -> String {
 }
 
 /// Merged 15-minute runs from `start` where every person in `team` is free.
-func freeRuns(_ team: [Person], from start: Double, slots: Int, mode: Person.Kind? = nil) -> [ClosedRange<Double>] {
+/// Your calendar's busy times (minutes since 1970), when you've let Skies read it. Empty in widgets.
+enum BusyTimes {
+    nonisolated(unsafe) static var current: [ClosedRange<Double>] = []
+
+    /// True if the quarter hour starting at `a` overlaps a meeting.
+    static func covers(_ a: Double, _ busy: [ClosedRange<Double>] = current) -> Bool {
+        busy.contains { $0.lowerBound < a + 15 && $0.upperBound > a }
+    }
+}
+
+func freeRuns(_ team: [Person], from start: Double, slots: Int, mode: Person.Kind? = nil,
+              busy: [ClosedRange<Double>] = BusyTimes.current) -> [ClosedRange<Double>] {
     var runs: [ClosedRange<Double>] = []
     var cur: (Double, Double)?
+    let checksYou = team.contains(where: \.isHome) && !busy.isEmpty
     for k in 0..<slots {
         let a = start + Double(k) * 15
-        if team.allSatisfy({ $0.free(Local($0.tz, a), with: mode) }) {
+        if team.allSatisfy({ $0.free(Local($0.tz, a), with: mode) }) && !(checksYou && BusyTimes.covers(a, busy)) {
             cur = (cur?.0 ?? a, a + 15)
         } else if let c = cur {
             runs.append(c.0...c.1)
@@ -177,6 +216,30 @@ private let elevationStops: [(Double, RGB, RGB)] = ([
 ] as [(Double, String, String)]).map { ($0.0, hex($0.1), hex($0.2)) }
 
 func mix(_ a: RGB, _ b: RGB, _ t: Double) -> RGB { a + (b - a) * t }
+
+/// A richer version of a sky colour for small skies on black (the notch): more saturated, deep night lifted so it
+/// reads as indigo rather than black, and the palest day blues held back so white text stays legible on them.
+func vivid(_ c: RGB, _ amount: Double) -> RGB {
+    guard amount > 0 else { return c }
+    let r = c.x / 255, g = c.y / 255, b = c.z / 255
+    let mx = max(r, g, b), mn = min(r, g, b), d = mx - mn
+    var h = 0.0
+    if d > 0 {
+        h = mx == r ? (g - b) / d : mx == g ? 2 + (b - r) / d : 4 + (r - g) / d
+        h = (h / 6).truncatingRemainder(dividingBy: 1); if h < 0 { h += 1 }
+    }
+    var s = mx == 0 ? 0 : d / mx, v = mx
+    // Scaled by `amount` (0.35 is the notch's): +18% saturation, never past 0.88 so blues don't turn neon.
+    let k = amount / 0.35
+    s = max(s, min(0.88, s * (1 + 0.18 * k)))
+    if v < 0.3 { v += (0.3 - v) * 0.3 * k }
+    if v > 0.82 { v -= (v - 0.82) * 0.5 * k }
+    // Back to RGB.
+    let i = Int(h * 6) % 6, f = h * 6 - Double(Int(h * 6))
+    let p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s)
+    let (rr, gg, bb): (Double, Double, Double) = [(v, t, p), (q, v, p), (p, v, t), (p, q, v), (t, p, v), (v, p, q)][i]
+    return RGB(rr * 255, gg * 255, bb * 255)
+}
 func smooth(_ t: Double) -> Double { t * t * (3 - 2 * t) }
 func clamp01(_ t: Double) -> Double { min(1, max(0, t)) }
 
@@ -237,5 +300,5 @@ func startText(_ m: Double, people: [Person]) -> String {
     let l = Local(home.tz, m)
     let days = l.dn - Local(home.tz, nowMinutes()).dn
     let day = days == 0 ? "" : days == 1 ? "tomorrow " : Calendar.current.shortWeekdaySymbols[l.wd] + " "
-    return "\(day)\(clock(l)) \(ampm(l.h))"
+    return "\(day)\(hm(l))"
 }

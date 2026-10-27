@@ -10,12 +10,17 @@ struct SkiesApp: App {
     var body: some Scene {
         #if os(macOS)
         // Notch-first: no Dock icon. The notch opens with the hotkey; the full window opens from here or the notch.
-        MenuBarExtra("Skies", systemImage: "sun.horizon.fill") {
+        // Up to three people's clocks stand in for the icon once picked from the menu.
+        MenuBarExtra {
             Button("Show in Notch  \(hotkey)") { NotchController.shared.open() }
             Button("Open Skies") { MainWindow.shared.show() }
             Divider()
+            MenuBarClockPicker(people: People.shared)
+            Divider()
             SettingsLink { Text("Settings…") }.keyboardShortcut(",")
             Button("Quit Skies") { NSApp.terminate(nil) }.keyboardShortcut("q")
+        } label: {
+            MenuBarClocks(people: People.shared)
         }
         Settings { SkiesSettings() }
         #else

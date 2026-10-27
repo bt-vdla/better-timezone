@@ -66,15 +66,35 @@ extension View {
     func sf(_ size: CGFloat, _ weight: Font.Weight) -> some View { modifier(ScaledSF(size, weight)) }
 }
 
+extension View {
+    /// One line that shrinks to fit its width but always keeps its full-size height: a hidden copy sets the size.
+    func steadyLine(minimumScale: CGFloat, alignment: Alignment = .leading) -> some View {
+        lineLimit(1).hidden().overlay(alignment: alignment) { lineLimit(1).minimumScaleFactor(minimumScale) }
+    }
+}
+
 /// Weather-style legibility for white type over a live sky.
 extension View {
     func skyLegible() -> some View { compositingGroup().shadow(color: .black.opacity(0.25), radius: 8, y: 1) }
+}
+
+/// `.plain`, but the whole label is the target, padding and glass included, not just its text and icons.
+struct WholeButton: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button(role: configuration.role, action: configuration.trigger) { configuration.label.contentShape(Rectangle()) }
+            .buttonStyle(.plain)
+    }
+}
+
+extension PrimitiveButtonStyle where Self == WholeButton {
+    static var whole: WholeButton { WholeButton() }
 }
 
 struct PressScale: ButtonStyle {
     var scale = 0.95
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            .contentShape(Rectangle())
             .scaleEffect(configuration.isPressed ? scale : 1)
             .animation(.easeOutStrong(0.12), value: configuration.isPressed)
     }
@@ -102,16 +122,15 @@ struct SkiesView: View {
     @State private var holidays = Holidays()
     @AppStorage("coached") private var coached = false
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @Namespace private var glass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        // Stars twinkle, so a night sky anywhere keeps the clock running at 60 fps; otherwise once a second.
-        let twinkle = !reduceMotion && people.list.contains { sunPosition($0, nowMinutes()).elev < -6 }
-        TimelineView(.animation(minimumInterval: model.isMoving ? nil : twinkle ? 1.0 / 60 : 1)) { ctx in
-            screen(m: model.minutes(at: ctx.date), now: nowMinutes(ctx.date),
-                   time: reduceMotion ? 0 : ctx.date.timeIntervalSinceReferenceDate)
+        // Every frame while the sky moves, otherwise on the minute; night skies twinkle on their own clocks.
+        SkyClock(moving: model.isMoving) { date in
+            screen(m: model.minutes(at: date), now: nowMinutes(date))
                 // ponytail: the glance screen can't scroll, so like widgets its type stops at the largest standard size;
                 // past that, six people's clocks stop fitting. Sheets, person pages and onboarding get the full range.
                 .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -155,6 +174,7 @@ struct SkiesView: View {
             }
         }
         .task { await people.fillRegions() }
+        .onChange(of: scenePhase, initial: true) { if scenePhase == .active { Calendars.shared.load() } }
         .task(id: people.list) { await Nudges.schedule(people.list) }
         #if os(iOS)
         .task { LiveWindow.tidy() }
@@ -183,7 +203,7 @@ struct SkiesView: View {
     }
     #endif
 
-    private func screen(m: Double, now: Double, time: Double) -> some View {
+    private func screen(m: Double, now: Double) -> some View {
         let home = people.home
         let h = Local(home.tz, m)
         let delta = (m - now).rounded()
@@ -195,12 +215,14 @@ struct SkiesView: View {
             default: abs(delta) >= 1
         }
 
-        return VStack(spacing: 0) {
+        // Color.clear answers the header and dock's size questions without asking the rows, so while the header ticks
+        // every frame the rows are laid out once, at one size, instead of re-measured for every probe.
+        return Color.clear.overlay { VStack(spacing: 0) {
             ForEach(people.visible) { p in
                 let l = p.isHome ? h : Local(p.tz, m)
                 SkyRow(person: p, minutes: m, local: l, home: h,
                        dimmed: !people.everyone && !people.team.contains(p), picked: !people.picked.isEmpty && people.picked.contains(p.id),
-                       animateDigits: !model.isMoving, occasion: occasion(p, l), time: time)
+                       animateDigits: !model.isMoving, occasion: occasion(p, l))
                     .contentShape(Rectangle())
                     .onTapGesture { people.toggle(p) }
                     .contextMenu {
@@ -224,7 +246,7 @@ struct SkiesView: View {
                     .accessibilityHint(p.isHome ? "" : "Double-tap to include in the overlap")
                     .accessibilityAction(named: "Open \(p.city)") { sheet = .person(p.id) }
             }
-        }
+        } }
         .animation(.easeOutStrong(0.2), value: people.picked)
         .animation(reduceMotion ? .easeOutStrong(0.2) : .spring(response: 0.4, dampingFraction: 1), value: people.scope)
         .sensoryFeedback(.selection, trigger: people.picked)
@@ -244,63 +266,73 @@ struct SkiesView: View {
     }
 
     private func header(when: String, m: Double, home: Person, showNow: Bool) -> some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(when)
-                    .sf(34, .semibold).tracking(-0.5).monospacedDigit()
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                    .accessibilityAddTraits(.updatesFrequently)
-                // ponytail: String, not Text(_:format:), which swaps in the device time zone.
-                Text(Date(timeIntervalSince1970: m * 60)
-                    .formatted(Date.FormatStyle(timeZone: home.tz).weekday(.wide).day().month(.wide)))
-                    .sf(15, .medium).opacity(0.8)
-                // A clock change in the next fortnight that moves someone's gap to you: tap to see what it does.
-                if let heads = Clocks.headsUp(people.list, now: nowMinutes()) {
-                    Button {
-                        askFirst = heads.ask
-                        sheet = .search
-                    } label: {
-                        Label(heads.text, systemImage: "clock.arrow.2.circlepath").labelStyle(TightLabel())
-                            .sf(13, .semibold).foregroundStyle(Color.sun).lineLimit(2).multilineTextAlignment(.leading)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Shows how it changes the time between you")
+        // Nothing here changes height while scrubbing (the Now button, longer times and dates), or the rows below jump.
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(when)
+                        .sf(34, .semibold).tracking(-0.5).monospacedDigit()
+                        .steadyLine(minimumScale: 0.5)
+                        .accessibilityAddTraits(.updatesFrequently)
+                    // ponytail: String, not Text(_:format:), which swaps in the device time zone.
+                    // Short names while the Now button narrows the column: "Wed, 28 Oct".
+                    Text(Date(timeIntervalSince1970: m * 60)
+                        .formatted(Date.FormatStyle(timeZone: home.tz).weekday(showNow ? .abbreviated : .wide).day()
+                            .month(showNow ? .abbreviated : .wide)))
+                        .sf(15, .medium).opacity(0.8)
+                        .steadyLine(minimumScale: 0.7)
                 }
-            }
-            .skyLegible()
-            Spacer()
-            GlassEffectContainer(spacing: 10) {
-                HStack(spacing: 10) {
-                    if showNow {
-                        Button("Now", action: model.goNow)
-                            .sf(15, .semibold)
-                            .fixedSize()
+                .skyLegible()
+                // Before the Spacer gets any: otherwise they split the free width and "In 16h 25m" truncates.
+                .layoutPriority(1)
+                Spacer()
+                GlassEffectContainer(spacing: 10) {
+                    HStack(spacing: 10) {
+                        if showNow {
+                            Button(action: model.goNow) {
+                                Text("Now").sf(15, .semibold).fixedSize()
+                                    .padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 40)
+                            }
                             .foregroundStyle(Color(hex: 0x1D1603))
-                            .padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 40)
-                            .glassEffect(.regular.tint(.sun).interactive(), in: Capsule())
-                            .glassEffectID("now", in: glass)
-                            .buttonStyle(.plain)
+                                .glassEffect(.regular.tint(.sun).interactive(), in: Capsule())
+                                .glassEffectID("now", in: glass)
+                                .buttonStyle(.whole)
+                        }
+                        Button { askFirst = ""; sheet = .search } label: {
+                            Image(systemName: "magnifyingglass").font(.sf(15, .semibold)).frame(width: 40, height: 40)
+                        }
+                        .buttonStyle(.whole)
+                        .glassEffect(.regular.interactive(), in: Circle())
+                        .glassEffectID("search", in: glass)
+                        .keyboardShortcut("f", modifiers: .command)
+                        .accessibilityLabel("Search people, or type a time")
+                        ScopeMenu(people: people)
+                            .glassEffectID("scope", in: glass)
+                        Button { sheet = .people } label: {
+                            Image(systemName: "person.2.fill").font(.sf(15, .semibold)).frame(width: 40, height: 40)
+                        }
+                        .buttonStyle(.whole)
+                        .glassEffect(.regular.interactive(), in: Circle())
+                        .glassEffectID("people", in: glass)
+                        .accessibilityLabel("People")
                     }
-                    Button { askFirst = ""; sheet = .search } label: {
-                        Image(systemName: "magnifyingglass").font(.sf(15, .semibold)).frame(width: 40, height: 40)
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(.regular.interactive(), in: Circle())
-                    .glassEffectID("search", in: glass)
-                    .keyboardShortcut("f", modifiers: .command)
-                    .accessibilityLabel("Search people, or type a time")
-                    ScopeMenu(people: people)
-                        .glassEffectID("scope", in: glass)
-                    Button { sheet = .people } label: {
-                        Image(systemName: "person.2.fill").font(.sf(15, .semibold)).frame(width: 40, height: 40)
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(.regular.interactive(), in: Circle())
-                    .glassEffectID("people", in: glass)
-                    .accessibilityLabel("People")
                 }
+                .animation(reduceMotion ? .easeOutStrong(0.2) : .spring(response: 0.35, dampingFraction: 1), value: showNow)
             }
-            .animation(reduceMotion ? .easeOutStrong(0.2) : .spring(response: 0.35, dampingFraction: 1), value: showNow)
+            // A clock change in the next fortnight that moves someone's gap to you: tap to see what it does.
+            // Full width, so the Now button never rewraps it.
+            if let heads = Clocks.headsUp(people.list, now: nowMinutes()) {
+                Button {
+                    askFirst = heads.ask
+                    sheet = .search
+                } label: {
+                    Label(heads.text, systemImage: "clock.arrow.2.circlepath").labelStyle(TightLabel())
+                        .sf(13, .semibold).foregroundStyle(Color.sun).lineLimit(2).multilineTextAlignment(.leading)
+                }
+                .buttonStyle(.whole)
+                .skyLegible()
+                .accessibilityHint("Shows how it changes the time between you")
+            }
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 22).padding(.top, 8).padding(.bottom, 14)
@@ -349,14 +381,14 @@ struct SkiesView: View {
                     Button { people.setScope(nil) } label: {
                         Image(systemName: "xmark").font(.sf(13, .bold)).frame(width: 30, height: 30)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.whole)
                     .glassEffect(.regular.interactive(), in: Circle())
                     .accessibilityLabel("Include everyone")
                 }
                 Button { sheet = .planner } label: {
                     Image(systemName: "calendar").font(.sf(14, .semibold)).frame(width: 30, height: 30)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.whole)
                 .glassEffect(.regular.interactive(), in: Circle())
                 .accessibilityLabel("Plan this week")
             }
@@ -369,7 +401,7 @@ struct SkiesView: View {
                 .onTapGesture(count: 2, perform: model.goNow)
                 .accessibilityElement()
                 .accessibilityLabel("Scrub time")
-                .accessibilityValue("\(people.home.city) \(clock(h)) \(ampm(h.h)), \(when)")
+                .accessibilityValue("\(people.home.city) \(hm(h)), \(when)")
                 .accessibilityAdjustableAction { $0 == .increment ? model.step(15) : model.step(-15) }
         }
         .foregroundStyle(.white)
@@ -423,12 +455,13 @@ struct SkiesView: View {
     private func overlap(_ m: Double, now: Double) -> (title: String, subtitle: String, target: Double?, note: String?) {
         let home = people.home
         let runs = people.runs(from: dayStart(home.tz, m))
-        let note = clockNote(people, after: max(m, now))
+        // From the real time, not the scrubbed one: a note appearing mid-scrub would resize the dock and move the rows.
+        let note = clockNote(people, after: now)
         let verb = people.mode == .personal ? "can talk" : "free"
 
         if let inside = runs.first(where: { $0.lowerBound <= m && m < $0.upperBound }) {
             let e = Local(home.tz, inside.upperBound)
-            return ("Now until \(clock(e)) \(ampm(e.h))", "\(who) \(verb)", nil, note)
+            return ("Now until \(hm(e))", "\(who) \(verb)", nil, note)
         }
         guard let r = runs.first(where: { $0.lowerBound > m }) else {
             return ("No shared time this week", who, nil, note)
@@ -441,7 +474,7 @@ struct SkiesView: View {
 
 func timeRange(_ r: ClosedRange<Double>, _ home: Person) -> String {
     let a = Local(home.tz, r.lowerBound), b = Local(home.tz, r.upperBound)
-    return ampm(a.h) == ampm(b.h) ? "\(clock(a))–\(clock(b)) \(ampm(b.h))" : "\(clock(a)) \(ampm(a.h))–\(clock(b)) \(ampm(b.h))"
+    return ampm(a.h) == ampm(b.h) ? "\(clock(a))–\(hm(b))" : "\(hm(a))–\(hm(b))"
 }
 
 /// The first upcoming clock change in the next two weeks that actually changes the team's shared window.
@@ -487,16 +520,26 @@ struct SkyRow: View {
     let person: Person, minutes: Double, local: Local, home: Local
     var dimmed = false, picked = false, animateDigits = true
     var occasion: (icon: String, text: String)? = nil
-    var time: Double = 0
-    @Environment(\.dynamicTypeSize) private var typeSize
-    @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
 
     var body: some View {
         let (label, dot) = status(person, local)
-        // Every row keeps the same layout; at large sizes the city shrinks and the clock (fixed size) stays whole.
-        ViewThatFits(in: .vertical) {
-            content(label: label, dot: dot, compact: false)
-            content(label: label, dot: dot, compact: true)
+        // The digits ride on top of a same-width stand-in in RowLabels, which is Equatable: scrubbing changes one
+        // Text per row instead of re-running ViewThatFits (both layouts, three meta lines each) every frame.
+        RowLabels(person: person, label: label, dot: dot, picked: picked, occasion: occasion.map { [$0.icon, $0.text] },
+                  relative: person.isHome ? nil : relative, ampm: TimeFormat.twentyFour ? nil : ampm(local.h),
+                  placeholder: clock(local).replacing(/\d/, with: "0"))
+        .equatable()
+        .overlayPreferenceValue(ClockSlot.self) { slot in
+            if let slot {
+                GeometryReader { g in
+                    let r = g[slot.bounds]
+                    Text(clock(local)).clockFont(compact: slot.compact)
+                        .contentTransition(.numericText(value: Double(local.h * 60 + local.m)))
+                        .animation(animateDigits ? .easeOutStrong(0.25) : nil, value: local.m)
+                        .frame(width: r.width, height: r.height, alignment: .trailing)
+                        .offset(x: r.minX, y: r.minY)
+                }
+            }
         }
         .foregroundStyle(.white)
         .skyLegible()
@@ -504,7 +547,7 @@ struct SkyRow: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             GeometryReader { g in
-                SkyBackground(person: person, minutes: minutes, insets: g.safeAreaInsets, time: time).ignoresSafeArea()
+                SkyBackground(person: person, minutes: minutes, insets: g.safeAreaInsets, twinkle: true).ignoresSafeArea()
             }
         }
         .overlay { Color.black.opacity(dimmed ? 0.5 : 0).allowsHitTesting(false) }
@@ -512,7 +555,52 @@ struct SkyRow: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func content(label: String, dot: RGB, compact: Bool) -> some View {
+    private var relative: String {
+        if person.isHome {
+            return Date(timeIntervalSince1970: Double(local.dn) * 86400)
+                .formatted(Date.FormatStyle(timeZone: .gmt).weekday(.abbreviated).day().month(.abbreviated))
+        }
+        let dd = local.dn - home.dn
+        let day = dd == 0 ? "" : dd == 1 ? "Tomorrow, " : dd == -1 ? "Yesterday, " : Calendar.current.shortWeekdaySymbols[local.wd] + ", "
+        let diff = Double(local.off - home.off)
+        return day + (diff == 0 ? "same time" : "\(dur(diff)) \(diff < 0 ? "behind" : "ahead")")
+    }
+}
+
+/// A row's name, status and clock layout: everything that holds still while the clock ticks.
+private struct RowLabels: View, Equatable {
+    let person: Person, label: String, dot: RGB, picked: Bool
+    let occasion: [String]?
+    let relative: String?, ampm: String?, placeholder: String
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
+    /// The full layout's natural height, measured once off-screen, and the row's height.
+    @State private var full: CGFloat?
+    @State private var room = CGFloat.infinity
+
+    nonisolated static func == (a: Self, b: Self) -> Bool {
+        a.person == b.person && a.label == b.label && a.dot == b.dot && a.picked == b.picked && a.occasion == b.occasion
+            && a.relative == b.relative && a.ampm == b.ampm && a.placeholder == b.placeholder
+    }
+
+    var body: some View {
+        // Every row keeps the same layout; at large sizes the city shrinks and the clock (fixed size) stays whole.
+        // ViewThatFits's rule, decided once instead of re-measuring both layouts on every frame of a scrub.
+        let compact = full.map { $0 > room } ?? false
+        // minHeight 0: the row takes its share of the screen whatever its content, so `room` is what's offered.
+        content(compact: compact)
+            .frame(minHeight: 0, maxHeight: .infinity)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { room = $0 }
+            .background {
+                if full == nil {
+                    content(compact: false, measuring: true).fixedSize(horizontal: false, vertical: true).hidden()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { full = $0 }
+                }
+            }
+            .onChange(of: typeSize) { full = nil }
+    }
+
+    private func content(compact: Bool, measuring: Bool = false) -> some View {
         HStack(alignment: .center, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
             // One circle size in both layouts, so names line up whichever layout a row picks.
@@ -531,9 +619,9 @@ struct SkyRow: View {
                 // When a photo and a long city leave no room, the label goes first; the photo already says who.
                 // Drop the code first, then let a long holiday name trail off: the row never grows past the screen.
                 ViewThatFits(in: .horizontal) {
-                    meta(label: label, dot: dot, compact: compact, withLabel: true)
-                    meta(label: label, dot: dot, compact: compact, withLabel: false)
-                    meta(label: label, dot: dot, compact: compact, withLabel: false, squeeze: true)
+                    meta(compact: compact, withLabel: true)
+                    meta(compact: compact, withLabel: false)
+                    meta(compact: compact, withLabel: false, squeeze: true)
                 }
                 .padding(.top, compact ? 0 : 4)
             }
@@ -542,20 +630,23 @@ struct SkyRow: View {
             VStack(alignment: .trailing, spacing: compact ? 0 : 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
                     // The clock is the point of the row: it never truncates; the city gives way instead.
-                    Text(clock(local)).sf(compact ? 38 : 50, .light).tracking(compact ? -0.6 : -1.2).monospacedDigit()
-                        .contentTransition(.numericText(value: Double(local.h * 60 + local.m)))
-                        .animation(animateDigits ? .easeOutStrong(0.25) : nil, value: local.m)
-                    Text(ampm(local.h)).sf(compact ? 13 : 15, .medium)
+                    Text(placeholder).clockFont(compact: compact)
+                        .hidden()
+                        .anchorPreference(key: ClockSlot.self, value: .bounds) { measuring ? nil : ClockSlot.Slot(bounds: $0, compact: compact) }
+                    if let ampm { Text(ampm).sf(compact ? 13 : 15, .medium) }
                 }
                 .fixedSize()
-                if !person.isHome { Text(relative).sf(12, .medium).opacity(0.8).minimumScaleFactor(0.75) }
+                // Measured as if every row had this line, so all rows pick the same layout.
+                if let relative = measuring ? relative ?? " " : relative {
+                    Text(relative).sf(12, .medium).opacity(0.8).lineLimit(1).minimumScaleFactor(0.75)
+                }
             }
             .lineLimit(1)
         }
         .padding(.vertical, compact ? 6 : 12)
     }
 
-    private func meta(label: String, dot: RGB, compact: Bool, withLabel: Bool, squeeze: Bool = false) -> some View {
+    private func meta(compact: Bool, withLabel: Bool, squeeze: Bool = false) -> some View {
         HStack(spacing: 6) {
             // The secondary label (the airport code, or the name when codes lead), then what they're doing.
             if withLabel {
@@ -566,7 +657,7 @@ struct SkyRow: View {
             Text(label).fixedSize()
             if let occasion {
                 Text("·").opacity(0.6)
-                Label(occasion.text, systemImage: occasion.icon).labelStyle(TightLabel()).foregroundStyle(Color.sun)
+                Label(occasion[1], systemImage: occasion[0]).labelStyle(TightLabel()).foregroundStyle(Color.sun)
                     .truncationMode(.tail)
                     .fixedSize(horizontal: !squeeze, vertical: false)
             }
@@ -574,17 +665,20 @@ struct SkyRow: View {
         .sf(compact ? 12 : 14, .medium).opacity(0.9).lineLimit(1)
         .fixedSize(horizontal: !squeeze, vertical: false)
     }
+}
 
-    private var relative: String {
-        if person.isHome {
-            return Date(timeIntervalSince1970: Double(local.dn) * 86400)
-                .formatted(Date.FormatStyle(timeZone: .gmt).weekday(.abbreviated).day().month(.abbreviated))
-        }
-        let dd = local.dn - home.dn
-        let day = dd == 0 ? "" : dd == 1 ? "Tomorrow, " : dd == -1 ? "Yesterday, " : Calendar.current.shortWeekdaySymbols[local.wd] + ", "
-        let diff = Double(local.off - home.off)
-        return day + (diff == 0 ? "same time" : "\(dur(diff)) \(diff < 0 ? "behind" : "ahead")")
+extension Text {
+    /// Digits are all one width, so "0:00" holds the place of "4:28" exactly.
+    func clockFont(compact: Bool) -> some View {
+        sf(compact ? 38 : 50, .light).tracking(compact ? -0.6 : -1.2).monospacedDigit().fixedSize()
     }
+}
+
+/// Where the row's chosen layout put its clock, and at which size.
+private struct ClockSlot: PreferenceKey {
+    struct Slot { let bounds: Anchor<CGRect>, compact: Bool }
+    static var defaultValue: Slot? { nil }
+    static func reduce(value: inout Slot?, nextValue: () -> Slot?) { value = value ?? nextValue() }
 }
 
 // MARK: - Tape
@@ -611,7 +705,7 @@ struct Tape: View {
                     let mid = l.h == 0
                     ctx.fill(Path(CGRect(x: xp - 0.75, y: 6, width: 1.5, height: mid ? 26 : 18)),
                              with: .color(.white.opacity(mid ? 1 : 0.55)))
-                    let label = mid ? Calendar.current.shortWeekdaySymbols[l.wd] : "\(h12(l.h)) \(ampm(l.h))"
+                    let label = mid ? Calendar.current.shortWeekdaySymbols[l.wd] : "\(hourText(l.h))"
                     ctx.draw(Text(label).font(.sf(11, mid ? .bold : .medium)).foregroundStyle(.white.opacity(mid ? 1 : 0.6)),
                              at: CGPoint(x: xp, y: size.height - 3), anchor: .bottom)
                 } else {

@@ -322,7 +322,7 @@ enum JumpParser {
 
 /// One line of a search result: an answer, a time, a person or a tag, and what tapping it does.
 struct Hit: Identifiable, Sendable {
-    enum Action: Sendable { case jump(Double, pick: Set<UUID>), open(UUID), scope(String) }
+    enum Action: Sendable { case jump(Double, pick: Set<UUID>), open(UUID), scope(String), fair(Fair.Slot, pick: Set<UUID>) }
     let id: String
     let icon: String
     let title: String
@@ -387,7 +387,8 @@ enum Ask {
     /// How well Ask understood a reading: an answer beats a time beats a list of names.
     private static func understanding(_ hits: [Hit]) -> Double {
         guard let top = hits.first else { return 0 }
-        if top.id == "convert" || top.id == "when" || top.id.hasPrefix("ask-") || top.id.hasPrefix("dst-") || top.id.hasPrefix("after-") { return 4 }
+        if top.id == "convert" || top.id == "when" || top.id.hasPrefix("ask-") || top.id.hasPrefix("dst-") || top.id.hasPrefix("after-")
+            || top.id.hasPrefix("fair-") { return 4 }
         if top.id == "jump" || top.id.hasPrefix("time-") { return 3 }
         return 1 + min(1, Double(hits.count) * 0.1)
     }
@@ -395,13 +396,18 @@ enum Ask {
     private static func answer(_ query: String, people: [Person], now: Double, extra: [Zone]) -> [Hit] {
         let q = query.lowercased().replacingOccurrences(of: "’", with: "'")
             .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "?!.,")))
+            // Possessives name the person ("sharru's clocks", "partners' clocks"); "what's" and "it's" stay.
+            .replacing(/\b(?!(?:what|it|that|who|where|when|how|let|here|there)'s)(\w+)'s\b/) { $0.output.1 }
+            .replacing(/(\w+s)'(?=\s|$)/) { $0.output.1 }
         guard !q.isEmpty, let home = people.first(where: \.isHome) ?? people.first else { return [] }
         var out: [Hit] = []
         let jump = JumpParser.parse(q, people: people, now: now, extra: extra)
 
         // Clock-change questions ("when do clocks change in london", "does india have dst") first; then a conversion
         // ("7am guyana to india", "time in india when it's 9am in new york").
-        if let a = afterChange(q, people: people, extra: extra, now: now, home: home) {
+        if let f = fairTimes(q, people: people, now: now, home: home) {
+            out += f
+        } else if let a = afterChange(q, people: people, extra: extra, now: now, home: home) {
             out.append(a)
         } else if let d = daylight(q, people: people, extra: extra, now: now) {
             out.append(d)
@@ -436,7 +442,7 @@ enum Ask {
             guard fields.contains(where: { f in f.hasPrefix(q) || words.contains { f.hasPrefix($0) } }) else { continue }
             let l = Local(p.tz, now)
             out.append(Hit(id: "person-\(p.id)", icon: "person.crop.circle", title: p.name,
-                           detail: "\(clock(l)) \(ampm(l.h)) · \(p.city) · \(status(p, l).0)", action: .open(p.id), person: p))
+                           detail: "\(hm(l)) · \(p.city) · \(status(p, l).0)", action: .open(p.id), person: p))
         }
         return out
     }
@@ -500,16 +506,17 @@ enum Ask {
         let l = Local(p.tz, now), label = status(p, l).0
         let aboutFree = ["free", "available", "busy", "working", "at work"].contains(asked)
         if aboutFree {
-            let free = p.free(l, with: p.relation) && home.free(Local(home.tz, now), with: p.relation)
+            let meeting = BusyTimes.covers(now)
+            let free = p.free(l, with: p.relation) && home.free(Local(home.tz, now), with: p.relation) && !meeting
             if free {
                 return Hit(id: "ask-\(p.id)", icon: "checkmark.circle.fill", title: "Yes, \(p.name)'s free",
                            detail: label, action: .open(p.id), color: [110, 231, 183], person: p,
                            clocks: pair(p.name, p.tz, home, now), at: now, note: label)
             }
             let next = nextWindow([home, p], mode: p.relation, after: now)
-            return Hit(id: "ask-\(p.id)", icon: "clock.fill", title: "Not now: \(label.lowercased())",
+            return Hit(id: "ask-\(p.id)", icon: "clock.fill", title: meeting ? "Not now: you're in a meeting" : "Not now: \(label.lowercased())",
                        detail: next.map { "\(p.name)'s free \(dayText($0.start, home.tz, now: now).lowercased()) at \(time($0.start, home.tz)) your time" }
-                        ?? "\(clock(l)) \(ampm(l.h)) there",
+                        ?? "\(hm(l)) there",
                        action: next.map { .jump($0.start, pick: [p.id]) }, person: p,
                        clocks: pair(p.name, p.tz, home, now), at: now)
         }
@@ -522,9 +529,9 @@ enum Ask {
         while wake < now + 1440 && status(p, Local(p.tz, wake)).0 == "Asleep" { wake += 15 }
         let w = Local(p.tz, wake)
         return Hit(id: "ask-\(p.id)", icon: "moon.zzz.fill", title: "No, \(p.name)'s asleep",
-                   detail: "Up around \(clock(w)) \(ampm(w.h)), your \(time(wake, home.tz))",
+                   detail: "Up around \(hm(w)), your \(time(wake, home.tz))",
                    action: .jump(wake, pick: [p.id]), color: [170, 170, 210], person: p,
-                   clocks: pair(p.name, p.tz, home, now), at: now, note: "Up around \(clock(w)) \(ampm(w.h)), your \(time(wake, home.tz))")
+                   clocks: pair(p.name, p.tz, home, now), at: now, note: "Up around \(hm(w)), your \(time(wake, home.tz))")
     }
 
     /// The next time you and all of them are free together.
@@ -559,7 +566,7 @@ enum Ask {
         let l = Local(z.tz, now), h = Local(home.tz, now)
         let diff = Double(l.off - h.off)
         let rel = diff == 0 ? "Same time as you" : "\(dur(abs(diff))) \(diff < 0 ? "behind" : "ahead of") you"
-        return Hit(id: "time-\(z.name)", icon: "globe", title: "\(clock(l)) \(ampm(l.h)) in \(z.name)",
+        return Hit(id: "time-\(z.name)", icon: "globe", title: "\(hm(l)) in \(z.name)",
                    detail: rel, action: nil, color: [133, 183, 235], clocks: pair(z.name, z.tz, home, now), at: now,
                    headline: "Right now · \(rel.prefix(1).lowercased() + rel.dropFirst())",
                    gap: Clocks.signed(Clocks.gap(z.tz, home.tz, now)),
@@ -581,7 +588,7 @@ enum Ask {
             let isYou = { (z: Zone) in z.person?.isHome == true && z.name == z.person?.name }
             /// "your 7:00 AM", "Kate's 9:00 AM", "7:00 AM in Guyana".
             func say(_ z: Zone, _ l: Local) -> String {
-                let t = "\(clock(l)) \(ampm(l.h))"
+                let t = "\(hm(l))"
                 if isYou(z) { return "your \(t)" }
                 if let p = z.person, p.name == z.name { return "\(p.name)\(p.name.hasSuffix("s") ? "'" : "'s") \(t)" }
                 return "\(t) in \(z.name)"
@@ -591,12 +598,12 @@ enum Ask {
             let people = Set([from.person, to.person].compactMap { $0 }.filter { !$0.isHome }.map(\.id))
             return Hit(id: "convert", icon: "arrow.left.arrow.right",
                        title: line.prefix(1).uppercased() + line.dropFirst(),
-                       detail: yoursToo ? "\(when) · your \(clock(mine)) \(ampm(mine.h)), \(day(home.tz))" : when,
+                       detail: yoursToo ? "\(when) · your \(hm(mine)), \(day(home.tz))" : when,
                        action: .jump(j.minutes, pick: people), color: [255, 214, 74], person: from.person ?? to.person,
-                       clocks: [HitClock(place: isYou(from) ? "You" : from.name, time: "\(clock(a)) \(ampm(a.h))", day: day(from.tz)),
-                                HitClock(place: isYou(to) ? "You" : to.name, time: "\(clock(b)) \(ampm(b.h))", day: day(to.tz))],
+                       clocks: [HitClock(place: isYou(from) ? "You" : from.name, time: "\(hm(a))", day: day(from.tz)),
+                                HitClock(place: isYou(to) ? "You" : to.name, time: "\(hm(b))", day: day(to.tz))],
                        at: j.minutes,
-                       headline: yoursToo ? "\(when) · your \(clock(mine)) \(ampm(mine.h)), \(day(home.tz))" : when,
+                       headline: yoursToo ? "\(when) · your \(hm(mine)), \(day(home.tz))" : when,
                        gap: Clocks.signed(Clocks.gap(from.tz, to.tz, j.minutes)),
                        cue: Clocks.cue((isYou(from) ? "your" : from.name, from.tz), (isYou(to) ? "your" : to.name, to.tz), at: j.minutes, now: now))
         }
@@ -604,21 +611,84 @@ enum Ask {
             let theirs = Local(z.tz, j.minutes)
             let whose = z.person.map { "\($0.name)'s" } ?? z.name
             return Hit(id: "jump", icon: "clock.arrow.circlepath",
-                       title: z.person != nil ? "\(whose) \(clock(theirs)) \(ampm(theirs.h)) is your \(clock(mine)) \(ampm(mine.h))"
-                                              : "\(clock(theirs)) \(ampm(theirs.h)) in \(whose) is \(clock(mine)) \(ampm(mine.h)) yours",
+                       title: z.person != nil ? "\(whose) \(hm(theirs)) is your \(hm(mine))"
+                                              : "\(hm(theirs)) in \(whose) is \(hm(mine)) yours",
                        detail: when, action: .jump(j.minutes, pick: z.person.map { [$0.id] } ?? []),
                        color: [255, 214, 74], person: z.person,
-                       clocks: [HitClock(place: z.person?.name ?? z.name, time: "\(clock(theirs)) \(ampm(theirs.h))", day: day(z.tz)),
-                                HitClock(place: "You", time: "\(clock(mine)) \(ampm(mine.h))", day: day(home.tz))],
+                       clocks: [HitClock(place: z.person?.name ?? z.name, time: "\(hm(theirs))", day: day(z.tz)),
+                                HitClock(place: "You", time: "\(hm(mine))", day: day(home.tz))],
                        at: j.minutes, headline: when,
                        gap: Clocks.signed(Clocks.gap(z.tz, home.tz, j.minutes)),
                        cue: Clocks.cue((z.person?.name ?? z.name, z.tz), ("your", home.tz), at: j.minutes, now: now))
         }
-        return Hit(id: "jump", icon: "clock.arrow.circlepath", title: "\(clock(mine)) \(ampm(mine.h)) your time",
+        return Hit(id: "jump", icon: "clock.arrow.circlepath", title: "\(hm(mine)) your time",
                    detail: when, action: .jump(j.minutes, pick: []), color: [255, 214, 74],
-                   clocks: [HitClock(place: "You", time: "\(clock(mine)) \(ampm(mine.h))", day: day(home.tz))], at: j.minutes,
+                   clocks: [HitClock(place: "You", time: "\(hm(mine))", day: day(home.tz))], at: j.minutes,
                    headline: when)
     }
+
+    /// "Find 30 min for team this week", "best time for a 1h call with kate and om", "schedule a call with family
+    /// tomorrow": the fairest few slots where everyone's free for the whole meeting.
+    private static func fairTimes(_ q: String, people: [Person], now: Double, home: Person) -> [Hit]? {
+        let r = /^(?:can you\s+)?(?:(find|book|schedule|plan|suggest|pick|set up|arrange)\s+(?:me\s+|us\s+)?|(?:the\s+)?(?:best|fairest|good)\s+time\s+(?:for\s+)?)?(?:(?:a|an)\s+)?(?:(\d+(?:\.\d+)?|an|a|one|half an)\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours)\s+)?(?:(slot|time|call|meeting|chat|catch ?up|sync)\s+)?(?:for|with)\s+(.+?)(?:\s+(this week|next week|tomorrow|today|this weekend|over the weekend))?$/
+        guard let m = q.firstMatch(of: r) else { return nil }
+        // Plain "time for tokyo" or "call with kate" belong elsewhere: it needs a verb, a length, a "meeting" or a range.
+        let meetingWord = m.output.4.map { ["slot", "meeting", "sync"].contains(String($0)) } ?? false
+        guard m.output.1 != nil || m.output.2 != nil || meetingWord || m.output.6 != nil
+                || q.hasPrefix("best time") || q.hasPrefix("fairest") else { return nil }
+        guard let who = target(String(m.output.5), people) else { return nil }
+        var minutes = 30.0
+        if let n = m.output.2 {
+            let amount = Double(n) ?? (n == "half an" ? 0.5 : 1)
+            minutes = (m.output.3?.hasPrefix("h") == true ? amount * 60 : amount)
+        }
+        let today = dayStart(home.tz, now), wd = Local(home.tz, now).wd
+        let toMonday = Double((8 - wd) % 7 == 0 ? 7 : (8 - wd) % 7), toSaturday = Double((6 - wd + 7) % 7)
+        let range: ClosedRange<Double>
+        switch m.output.6.map(String.init) {
+        case "today": range = now...(today + 1440)
+        case "tomorrow": range = (today + 1440)...(today + 2880)
+        case "next week": range = (today + toMonday * 1440)...(today + (toMonday + 7) * 1440)
+        case "this weekend", "over the weekend": range = (today + toSaturday * 1440)...(today + (toSaturday + 2) * 1440)
+        default: range = now...(now + 7 * 1440)
+        }
+        let kinds = Set(who.members.map(\.relation))
+        let mode = kinds.count == 1 ? kinds.first : nil
+        let team = [home] + who.members
+        let slots = Fair.find(team, minutes: minutes, in: max(now, range.lowerBound)...range.upperBound, mode: mode)
+        let length = dur(minutes)
+        guard !slots.isEmpty else {
+            return [Hit(id: "fair-none", icon: "calendar.badge.exclamationmark", title: "No \(length) when everyone's free",
+                        detail: "Try a shorter call, fewer people, or a different week", action: nil)]
+        }
+        let pick = Set(who.members.map(\.id))
+        return slots.enumerated().map { i, slot in
+            let day = Clocks.day(slot.start, home.tz, now: now)
+            let range = timeRange(slot.start...slot.end, home)
+            let theirs = who.members.map { p in
+                let s = slot.stretch[p.id] ?? 0
+                let (lo, _) = band(p, mode)
+                let early = Local(p.tz, slot.start).f < lo
+                return "\(p.name) \(hm(Local(p.tz, slot.start)))" + (s > 0 ? " (\(early ? "early" : "late"))" : "")
+            }
+            let stretched = team.filter { (slot.stretch[$0.id] ?? 0) > 0 }
+            let headline = stretched.isEmpty ? "Inside everyone's day"
+                : stretched.count == 1 ? "\(stretched[0].isHome ? "You stretch" : "\(stretched[0].name) stretches") \(dur((slot.stretch[stretched[0].id] ?? 0) * 60))"
+                : "\(stretched.count) people stretch a little"
+            return Hit(id: "fair-\(i)", icon: i == 0 ? "sparkles" : "calendar",
+                       title: "\(day.prefix(1).uppercased() + day.dropFirst()) \(range)",
+                       detail: theirs.joined(separator: " · "),
+                       action: .fair(slot, pick: pick), color: [110, 231, 183],
+                       person: who.members.count == 1 ? who.members.first : nil,
+                       clocks: i == 0 ? [HitClock(place: "You", time: hm(Local(home.tz, slot.start)), day: day)]
+                            + who.members.prefix(2).map { HitClock(place: $0.name, time: hm(Local($0.tz, slot.start)), day: Clocks.day(slot.start, $0.tz, now: now)) } : [],
+                       at: slot.start,
+                       headline: i == 0 ? "\(length) · \(headline)" : nil,
+                       note: who.members.count > 2 ? theirs.joined(separator: " · ") : nil)
+        }
+    }
+
+    private static func band(_ p: Person, _ mode: Person.Kind?) -> (Double, Double) { Fair.band(p, mode: mode) }
 
     /// "After DST, what's my time vs IST", "when dst ends, gap to new york", "after the clocks go back, 9am new york in
     /// india", "once summer time starts in london": the gap after the next change, or a time read after it.
@@ -730,11 +800,21 @@ enum Ask {
             let title = yesNo
                 ? (season != nil ? "Yes: \(name) is on \(season!) (\(Clocks.utc(off)))" : "No: \(name) is on standard time (\(Clocks.utc(off)))")
                 : "\(Clocks.owner(name)) clocks \(Clocks.move(next.shift)) \(when)"
+            // Someone else's change: what it does to the gap between you, rather than to UTC.
+            var clocks = [HitClock(place: "Now", time: Clocks.utc(off), day: season ?? "standard"),
+                          HitClock(place: "From \(when)", time: Clocks.utc(after), day: Clocks.season(z.tz, next.at + 1) ?? "standard")]
+            var detail = "At \(hm(local)) their time, \(Clocks.utc(off)) becomes \(Clocks.utc(after))"
+            if let home = people.first(where: \.isHome), z.person?.isHome != true {
+                let now = Clocks.gap(home.tz, z.tz, next.at - 1), then = Clocks.gap(home.tz, z.tz, next.at + 1)
+                let side = { (g: Int) in g == 0 ? "with you" : g > 0 ? "ahead of you" : "behind you" }
+                clocks = [HitClock(place: "Now", time: dur(Double(abs(now))), day: side(now)),
+                          HitClock(place: "From \(when)", time: dur(Double(abs(then))), day: side(then))]
+                detail = "At \(hm(local)) their time: \(Clocks.apart(now)) now, \(Clocks.apart(then)) after"
+            }
             return Hit(id: "dst-\(z.name)", icon: "clock.arrow.2.circlepath", title: title,
-                       detail: "At \(clock(local)) \(ampm(local.h)) their time, \(Clocks.utc(off)) becomes \(Clocks.utc(after))",
+                       detail: detail,
                        action: .jump(next.at, pick: z.person.map { $0.isHome ? [] : [$0.id] } ?? []), color: [255, 214, 74], person: z.person,
-                       clocks: [HitClock(place: "Now", time: Clocks.utc(off), day: season ?? "standard"),
-                                HitClock(place: "From \(when)", time: Clocks.utc(after), day: Clocks.season(z.tz, next.at + 1) ?? "standard")],
+                       clocks: clocks,
                        at: next.at,
                        headline: yesNo ? title : "\(Clocks.owner(name)) clocks \(Clocks.move(next.shift)) \(when)",
                        gap: Clocks.signed(next.shift))
@@ -742,7 +822,7 @@ enum Ask {
         return nil
     }
 
-    private static func time(_ m: Double, _ tz: TimeZone) -> String { let l = Local(tz, m); return "\(clock(l)) \(ampm(l.h))" }
+    private static func time(_ m: Double, _ tz: TimeZone) -> String { let l = Local(tz, m); return "\(hm(l))" }
 
     /// Their clock and yours, right now.
     private static func pair(_ name: String, _ tz: TimeZone, _ home: Person, _ now: Double) -> [HitClock] {
@@ -773,6 +853,11 @@ enum Ask {
         model.springTo(m, response: 0.6)
     case .open(let id): open(id)
     case .scope(let id): people.setScope(id)
+    case .fair(let slot, let pick):
+        // Choosing a slot is what counts towards rotation, so whoever stretched now is spared next time.
+        Fair.record(slot)
+        people.picked = pick
+        model.springTo(slot.start, response: 0.6)
     }
 }
 

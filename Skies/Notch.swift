@@ -217,6 +217,13 @@ final class NotchPanel: NSPanel {
         return true
     }
 
+    /// Opens the notch already asking: the Services menu sends selected text here.
+    func ask(_ text: String) {
+        let line = text.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        open()
+        state.query = String(line.prefix(120))
+    }
+
     /// Clears the question, so the skies come back.
     func endSearch() {
         guard !state.query.isEmpty else { return }
@@ -224,12 +231,29 @@ final class NotchPanel: NSPanel {
     }
 }
 
+// MARK: - Services menu
+
+/// "Convert Time with Skies" in every app's Services menu: the selected text becomes the notch's question.
+final class TimeService: NSObject {
+    @objc func convertTime(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        guard let text = pboard.string(forType: .string), !text.isEmpty else { return }
+        MainActor.assumeIsolated { NotchController.shared.ask(text) }
+    }
+}
+
 // MARK: - Main window on demand
+
+/// RootView told whether its window can be seen, so its clocks hold still while nobody's looking.
+private struct MainContent: View {
+    var offscreen = false
+    var body: some View { RootView().environment(\.offscreen, offscreen) }
+}
 
 /// The full skies window, opened from the notch or the menu bar; Skies has no Dock icon.
 @MainActor final class MainWindow {
     static let shared = MainWindow()
     private var window: NSWindow?
+    private var host: NSHostingView<MainContent>?
 
     func show() {
         if window == nil {
@@ -240,10 +264,22 @@ final class NotchPanel: NSPanel {
             w.titleVisibility = .hidden
             w.isReleasedWhenClosed = false
             w.contentMinSize = CGSize(width: 340, height: 640)
-            w.contentView = NSHostingView(rootView: RootView())
             w.setFrameAutosaveName("SkiesMain")
             if !w.setFrameUsingName("SkiesMain") { w.center() }
+            // An AppKit window keeps its views' clocks and twinkling stars running even closed or minimised:
+            // they pause whenever it can't be seen, and closing lets them go.
+            for name in [NSWindow.willCloseNotification, NSWindow.didChangeOcclusionStateNotification,
+                         NSWindow.didMiniaturizeNotification, NSWindow.didDeminiaturizeNotification] {
+                NotificationCenter.default.addObserver(forName: name, object: w, queue: .main) { n in
+                    let closing = n.name == NSWindow.willCloseNotification
+                    MainActor.assumeIsolated { MainWindow.shared.visibilityChanged(closing: closing) }
+                }
+            }
             window = w
+        }
+        if host == nil {
+            host = NSHostingView(rootView: MainContent())
+            window?.contentView = host
         }
         NotchController.shared.close()
         // Skies has no Dock icon, so macOS may decline a plain activate() when it comes from the notch;
@@ -252,12 +288,21 @@ final class NotchPanel: NSPanel {
         window?.orderFrontRegardless()
         window?.makeKeyAndOrderFront(nil)
     }
+
+    private func visibilityChanged(closing: Bool) {
+        let offscreen = closing || window?.isMiniaturized != false || window?.occlusionState.contains(.visible) != true
+        if host?.rootView.offscreen != offscreen { host?.rootView = MainContent(offscreen: offscreen) }
+        if closing { window?.contentView = nil; host = nil }
+    }
 }
 
 final class MacDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
             NotchController.shared.start()
+            Calendars.shared.load()
+            NSApp.servicesProvider = TimeService()
+            NSUpdateDynamicServices()
             Task { await Nudges.schedule(People.shared.list) }
             if !UserDefaults.standard.bool(forKey: "onboarded") { MainWindow.shared.show() }
             #if DEBUG
@@ -421,21 +466,13 @@ struct NotchView: View {
                 HStack(spacing: 6) {
                     Text(when).font(.sf(13, .semibold)).monospacedDigit()
                     Text(date).font(.sf(12, .medium)).opacity(0.6)
-                    // A clock change coming up (or just gone) that moves someone's gap to you: click to ask about it.
-                    if let heads = Clocks.headsUp(people.list, now: now), !state.searching {
-                        Button { state.query = heads.ask } label: {
-                            Label(heads.short, systemImage: "clock.arrow.2.circlepath").labelStyle(TightLabel())
-                                .font(.sf(11, .semibold)).foregroundStyle(Color.sun).lineLimit(1)
-                        }
-                        .buttonStyle(.plain)
-                        .help(heads.text)
-                    }
                     if abs(delta) >= 1 {
-                        Button("Now") { state.model.goNow() }
-                            .font(.sf(11, .semibold)).foregroundStyle(Color(hex: 0x1D1603))
-                            .padding(.horizontal, 8).frame(height: 20)
-                            .background(Color.sun, in: Capsule())
-                            .buttonStyle(.plain)
+                        Button { state.model.goNow() } label: {
+                            Text("Now").font(.sf(11, .semibold)).foregroundStyle(Color(hex: 0x1D1603))
+                                .padding(.horizontal, 8).frame(height: 20)
+                                .background(Color.sun, in: Capsule())
+                        }
+                            .buttonStyle(.whole)
                     }
                 }
                 .lineLimit(1)
@@ -449,6 +486,10 @@ struct NotchView: View {
             AskView(query: Bindable(state).query, people: people, places: state.places, compact: true, examples: false,
                     placeholder: prompt(time), emptyKey: scrubKey, refocus: state.contentShown, run: run) {
                 NotchController.shared.close()
+            }
+            // The field's empty end (clear only shows once typing) holds what doesn't fit beside the hardware notch.
+            .overlay(alignment: .trailing) {
+                if !state.searching { fieldEnd(now: now).padding(.trailing, AskView.Compact.inset + 8) }
             }
             .padding(.horizontal, AskView.Compact.inset)
 
@@ -475,11 +516,32 @@ struct NotchView: View {
         .padding(.bottom, state.searching ? AskView.Compact.inset : AskView.Compact.gap)
     }
 
+    private func fieldEnd(now: Double) -> some View {
+        HStack(spacing: 10) {
+            // A clock change coming up (or just gone) that moves someone's gap to you: click for what it means.
+            if let heads = Clocks.headsUp(people.list, now: now) {
+                Button { state.query = heads.ask } label: {
+                    Label(heads.short, systemImage: "clock.arrow.2.circlepath").labelStyle(TightLabel())
+                        .font(.sf(11, .semibold)).foregroundStyle(Color.sun).lineLimit(1)
+                }
+                .buttonStyle(.whole)
+                .help(heads.text)
+            }
+            Button { MainWindow.shared.show() } label: {
+                Image(systemName: "macwindow").font(.sf(12, .semibold)).opacity(0.55)
+                    .frame(width: 20, height: 20).contentShape(Rectangle())
+            }
+            .buttonStyle(.whole)
+            .keyboardShortcut("o")
+            .help("Open Skies (⌘O)")
+        }
+    }
+
     private func skies(m: Double, time: Double) -> some View {
         ForEach(people.visible) { p in
             NotchTile(person: p, minutes: m, time: time, row: listed,
                       dimmed: !people.everyone && !people.team.contains(p),
-                      picked: !people.picked.isEmpty && people.picked.contains(p.id)) { reach(p) }
+                      picked: !people.picked.isEmpty && people.picked.contains(p.id)) { people.toggle(p) }
                 .contextMenu { menu(p) }
         }
     }
@@ -492,7 +554,7 @@ struct NotchView: View {
         let text: String, target: Double?
         if let inside = runs.first(where: { $0.lowerBound <= m && m < $0.upperBound }) {
             let e = Local(home.tz, inside.upperBound)
-            (text, target) = ("\(verb) now, until \(clock(e)) \(ampm(e.h))", nil)
+            (text, target) = ("\(verb) now, until \(hm(e))", nil)
         } else if let r = runs.first(where: { $0.lowerBound > m }) {
             let days = Local(home.tz, r.lowerBound).dn - Local(home.tz, m).dn
             let day = days == 0 ? "" : days == 1 ? "tomorrow " : Calendar.current.shortWeekdaySymbols[Local(home.tz, r.lowerBound).wd] + " "
@@ -508,7 +570,7 @@ struct NotchView: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.whole)
         .help(target != nil ? "Jump to that time" : "")
     }
 
@@ -547,16 +609,6 @@ struct NotchView: View {
         }
     }
 
-    /// A tile click reaches them by their favourite way; without a contact it picks them for the overlap.
-    private func reach(_ p: Person) {
-        if let ch = p.contact?.preferred, let url = ch.url {
-            openURL(url)
-            NotchController.shared.close()
-        } else {
-            people.toggle(p)
-        }
-    }
-
     @ViewBuilder private func menu(_ p: Person) -> some View {
         if let c = p.contact {
             ForEach(c.numbers.isEmpty ? [] : [Channel.Method.call, .facetime, .facetimeAudio, .message, .whatsapp], id: \.self) { m in
@@ -565,11 +617,6 @@ struct NotchView: View {
                 }
             }
             Divider()
-        }
-        if !p.isHome {
-            Button(people.picked.contains(p.id) ? "Leave out of the plan" : "Include in the plan", systemImage: "person.crop.circle.badge.checkmark") {
-                people.toggle(p)
-            }
         }
         if !people.usedTags.isEmpty {
             Picker("Show", selection: Binding(get: { people.scope }, set: { people.setScope($0) })) {
@@ -627,14 +674,14 @@ struct NotchTile: View {
                 }
             }
             .skyLegible()
-            .background { SkyBackground(person: person, minutes: minutes, time: time, flare: 0, discs: false) }
+            .background { SkyBackground(person: person, minutes: minutes, time: time, flare: 0, discs: false, vividness: 0.35) }
             .overlay { Color.black.opacity(dimmed ? 0.5 : 0) }
             .clipShape(RoundedRectangle(cornerRadius: row ? 9 : 14, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: row ? 9 : 14, style: .continuous))
         }
         .buttonStyle(PressScale(scale: 0.97))
-        .help("\(person.city) · \(label)\(person.contact?.preferred.map { " · click to \($0.method.title.lowercased()) \(person.name)" } ?? "")")
-        .accessibilityLabel("\(person.name), \(person.city), \(clock(l)) \(ampm(l.h)), \(label)")
+        .help("\(person.city) · \(label)\(person.isHome ? "" : picked ? " · click to leave out of the plan" : " · click to plan with \(person.name)")")
+        .accessibilityLabel("\(person.name), \(person.city), \(hm(l)), \(label)")
     }
 
     /// The big label and its quiet tag: "Mom VTZ" by default, or "VTZ Mom" when codes lead.
@@ -650,9 +697,122 @@ struct NotchTile: View {
     private func time(_ l: Local, size: CGFloat) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 2) {
             Text(clock(l)).font(.sf(size, .light)).monospacedDigit()
-            Text(ampm(l.h)).font(.sf(size * 0.45, .medium))
+            if !TimeFormat.twentyFour { Text(ampm(l.h)).font(.sf(size * 0.45, .medium)) }
         }
         .fixedSize()
+    }
+}
+
+// MARK: - Menu bar clocks
+
+/// Up to three clocks in the menu bar ("SFO 05:40   DXB 08:40"): your people in the app's order, then any cities
+/// added just for the menu bar. The sun icon when none.
+struct MenuBarClocks: View {
+    static let key = "menubar.clocks", citiesKey = "menubar.cities"
+    static let limit = 3
+    let people: People
+    @AppStorage(key) private var ids = ""
+    @AppStorage(citiesKey) private var cities = Data()
+    private let tick = MinuteTick.shared
+
+    static func picked(_ ids: String, in list: [Person]) -> [Person] {
+        let set = Set(ids.split(separator: ","))
+        return list.filter { set.contains(Substring($0.id.uuidString)) }
+    }
+
+    /// Cities that aren't people, kept only for the menu bar.
+    static func cities(_ data: Data) -> [Person] { (try? JSONDecoder().decode([Person].self, from: data)) ?? [] }
+    static func encode(_ cities: [Person]) -> Data { (try? JSONEncoder().encode(cities)) ?? Data() }
+
+    var body: some View {
+        let picked = Self.picked(ids, in: people.list + Self.cities(cities)).prefix(Self.limit)
+        if picked.isEmpty {
+            Image(systemName: "sun.horizon.fill")
+        } else {
+            Text(picked.map { "\($0.code) \(hm(Local($0.tz, tick.now)))" }.joined(separator: "   "))
+        }
+    }
+}
+
+/// The "Clocks in Menu Bar" submenu: tick up to three of your people, or add any other city.
+/// Added cities show as soon as they're picked; unticking one removes it.
+struct MenuBarClockPicker: View {
+    let people: People
+    @AppStorage(MenuBarClocks.key) private var ids = ""
+    @AppStorage(MenuBarClocks.citiesKey) private var cities = Data()
+
+    var body: some View {
+        let extra = MenuBarClocks.cities(cities)
+        let picked = MenuBarClocks.picked(ids, in: people.list + extra).map(\.id)
+        let full = picked.count >= MenuBarClocks.limit
+        Menu("Clocks in Menu Bar") {
+            ForEach(people.list) { p in
+                let on = picked.contains(p.id)
+                Toggle("\(p.name)  \(p.code)", isOn: Binding(get: { on }, set: { add in
+                    ids = (add ? picked + [p.id] : picked.filter { $0 != p.id }).map(\.uuidString).joined(separator: ",")
+                }))
+                .disabled(!on && full)
+            }
+            if !extra.isEmpty { Divider() }
+            ForEach(extra) { c in
+                Toggle("\(c.city)  \(c.code)", isOn: Binding(get: { true }, set: { _ in
+                    cities = MenuBarClocks.encode(extra.filter { $0.id != c.id })
+                    ids = picked.filter { $0 != c.id }.map(\.uuidString).joined(separator: ",")
+                }))
+            }
+            Divider()
+            Button("Add a City…") { AddCityWindow.shared.show() }.disabled(full)
+        }
+    }
+}
+
+/// A small window to find any city for the menu bar, since a menu can't hold a search field.
+@MainActor final class AddCityWindow {
+    static let shared = AddCityWindow()
+    private var window: NSWindow?
+
+    func show() {
+        if window == nil {
+            let w = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 480, height: 460),
+                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            w.title = "Add a City"
+            w.isReleasedWhenClosed = false
+            // Bridged so `.searchable` gets the toolbar it puts its field in; a bare hosting view has none.
+            let host = NSHostingController(rootView: NavigationStack { CitySearch(focused: true) { [weak self] in self?.add($0) } })
+            host.sceneBridgingOptions = [.toolbars, .title]
+            w.contentViewController = host
+            w.setContentSize(CGSize(width: 480, height: 460))   // wide enough that the search field isn't folded away
+            w.center()
+            window = w
+        }
+        NSApp.activate()
+        window?.orderFrontRegardless()
+        window?.makeKeyAndOrderFront(nil)
+    }
+
+    private func add(_ place: Place) {
+        let d = UserDefaults.standard
+        let city = Person(place: place)
+        let cities = MenuBarClocks.cities(d.data(forKey: MenuBarClocks.citiesKey) ?? Data())
+        d.set(MenuBarClocks.encode(cities + [city]), forKey: MenuBarClocks.citiesKey)
+        d.set([d.string(forKey: MenuBarClocks.key), city.id.uuidString].compactMap { $0?.nonEmpty }.joined(separator: ","),
+              forKey: MenuBarClocks.key)
+        window?.close()
+    }
+}
+
+/// The current minute, ticking on the minute: enough for the menu bar without a per-second timer.
+@MainActor @Observable final class MinuteTick {
+    static let shared = MinuteTick()
+    private(set) var now = nowMinutes()
+
+    private init() {
+        Task {
+            while true {
+                try? await Task.sleep(for: .seconds(60 - Date.now.timeIntervalSince1970.truncatingRemainder(dividingBy: 60)))
+                now = nowMinutes()
+            }
+        }
     }
 }
 
@@ -663,6 +823,8 @@ struct SkiesSettings: View {
     var body: some View {
         Form {
             LabeledContent("Open Skies in the notch") { ShortcutRecorder() }
+            TimeFormatPicker()
+            CalendarToggle()
             Picker("Show people by", selection: $showBy) {
                 ForEach(ShowBy.allCases) { Text($0.title).tag($0) }
             }

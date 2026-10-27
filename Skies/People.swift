@@ -24,6 +24,13 @@ struct Person: Codable, Identifiable, Hashable {
     var codeOverride: String?
     /// Tag ids ("family"), in the order chosen; the first says work or personal. Nil for people saved before tags.
     var tags: [String]?
+    /// Gentle notifications you've asked for about them. Nil for people saved before there were any.
+    var notify: Notify?
+
+    struct Notify: Codable, Hashable {
+        var wake = false
+        var birthday = false
+    }
 
     /// The bits of a contact card Skies keeps: enough to show a face, reach them, and know their birthday.
     struct Contact: Codable, Hashable {
@@ -254,6 +261,9 @@ struct Person: Codable, Identifiable, Hashable {
     }
 
     /// Free runs for the team over the 8 days from `dayStart`, cached per day and selection.
+    /// Forget worked-out windows (your calendar changed).
+    func refreshRuns() { runsCache.removeAll() }
+
     func runs(from dayStart: Double) -> [ClosedRange<Double>] {
         let k = "\(Int(dayStart))|\(picked.sorted { $0.uuidString < $1.uuidString })"
         if let hit = runsCache[k] { return hit }

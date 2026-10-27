@@ -53,12 +53,15 @@ struct SkyEntry: TimelineEntry {
     }
 
     /// One entry a minute for the next hour, so every clock stays exact without waking the app.
+    /// While a ±1h offset runs, only until it lapses: a quarter of the work per tap.
     static func hour(person: PersonEntity?, tag: TagEntity? = nil, scored: Bool = false) -> Timeline<SkyEntry> {
+        TimeFormat.twentyFour = TimeFormat.read()   // the app may have changed it since this process started
         let start = Calendar.current.dateInterval(of: .minute, for: .now)?.start ?? .now
         // Read people once: a tap on ±1h rebuilds every widget's hour, and decoding 60 times made that slow.
         Tags.reload()
         let saved = Person.saved()
-        return Timeline(entries: (0..<60).map {
+        let minutes = TimeTravel.offset(at: .now) == 0 ? 60 : Int(TimeTravel.span / 60) + 1
+        return Timeline(entries: (0..<minutes).map {
             var e = make(at: start.addingTimeInterval(Double($0) * 60), person: person, tag: tag, saved: saved)
             if scored { e.relevance = e.talkScore }
             return e
@@ -108,6 +111,7 @@ struct WidgetSky: View {
             let discs = discs
             ZStack {
                 LinearGradient(colors: [Color(s.zenith), Color(s.horizon)], startPoint: .top, endPoint: .bottom)
+                Grain()
                 Canvas { ctx, size in
                     drawStars(ctx, size, night: clamp01((-s.sunElev - 3) / 12), seed: seed)
                     if discs { drawDiscs(ctx, size, s) }
@@ -171,13 +175,11 @@ struct Clock: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 2) {
             Text(clock(local)).font(.system(size: size, weight: .light)).monospacedDigit()
-            Text(ampm(local.h)).font(.system(size: size * 0.42, weight: .medium))
+            if !TimeFormat.twentyFour { Text(ampm(local.h)).font(.system(size: size * 0.42, weight: .medium)) }
         }
         .contentTransition(.numericText(value: Double(local.h * 60 + local.m)))
         .widgetAccentable()
         .fixedSize()
-        // Marked stale the moment a ±1h tap lands, until the new hour arrives.
-        .invalidatableContent()
     }
 }
 
@@ -286,7 +288,7 @@ struct PersonWidgetView: View {
                 .containerBackground(.clear, for: .widget)
             case .accessoryRectangular:
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("\(p.name) · \(clock(l)) \(ampm(l.h))").font(.headline).widgetAccentable()
+                    Text("\(p.name) · \(hm(l))").font(.headline).widgetAccentable()
                     Text(status(p, l).0).font(.caption)
                     if let next = nextWindow([entry.people.first { $0.isHome } ?? p, p], mode: p.relation, after: entry.minutes) {
                         Text(next.start > entry.minutes ? "Talk \(startText(next.start, people: entry.people))" : "Free now")
@@ -393,7 +395,7 @@ struct StackWidgetView: View {
         let from = w.start - nowMinutes(entry.date)
         guard from <= 24 * 60 else { return nil }
         let l = Local(home.tz, w.start)
-        return ("\(clock(l)) \(ampm(l.h))", Int(from.rounded()))
+        return ("\(hm(l))", Int(from.rounded()))
     }
 
     @ViewBuilder private func band(_ p: Person) -> some View {
@@ -464,6 +466,7 @@ struct NextProvider: AppIntentTimelineProvider {
 
     /// Entries now, when the window opens and when it closes, then refresh: the countdown itself ticks on its own.
     func timeline(for configuration: NextConfig, in context: Context) async -> Timeline<NextEntry> {
+        TimeFormat.twentyFour = TimeFormat.read()
         let first = entry(at: .now, with: configuration.person, tag: configuration.tag)
         var entries = [first]
         if let w = first.window {
@@ -561,7 +564,7 @@ struct NextWindowView: View {
     private func homeTime(_ m: Double, _ home: Person?) -> String {
         guard let home else { return "" }
         let l = Local(home.tz, m)
-        return "\(clock(l)) \(ampm(l.h))"
+        return "\(hm(l))"
     }
 }
 
@@ -599,7 +602,7 @@ struct Ribbon: View {
             let l = Local(home.tz, now)
             ctx.draw(Text("now").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white.opacity(0.7)),
                      at: CGPoint(x: 0, y: total + 4), anchor: .topLeading)
-            ctx.draw(Text("\(h12((l.h + 12) % 24)) \(ampm((l.h + 12) % 24))").font(.system(size: 9, weight: .medium)).foregroundStyle(.white.opacity(0.5)),
+            ctx.draw(Text(hourText((l.h + 12) % 24)).font(.system(size: 9, weight: .medium)).foregroundStyle(.white.opacity(0.5)),
                      at: CGPoint(x: size.width / 2, y: total + 4), anchor: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

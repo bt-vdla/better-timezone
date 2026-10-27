@@ -27,16 +27,14 @@ struct PersonDetail: View {
     let id: UUID
     /// Called after "Plan with…" picks them, so whoever presented this can close.
     let onPlan: () -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         if let i = people.list.firstIndex(where: { $0.id == id }) {
             let p = people.list[i]
-            let twinkle = !reduceMotion && sunPosition(p, nowMinutes()).elev < -6
-            TimelineView(.animation(minimumInterval: model.isMoving ? nil : twinkle ? 1.0 / 60 : 1)) { ctx in
-                let m = model.minutes(at: ctx.date)
+            SkyClock(moving: model.isMoving) { date in
+                let m = model.minutes(at: date)
                 ScrollView {
                     VStack(spacing: 14) {
                         hero(p, m: m)
@@ -45,7 +43,7 @@ struct PersonDetail: View {
                             Label("Edit \(p.name)", systemImage: "pencil")
                                 .font(.sf(14, .semibold)).padding(.horizontal, 16).frame(height: 34)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.whole)
                         .glassEffect(.regular.interactive(), in: Capsule())
                         #endif
                         if let contact = Binding($people.list[i].contact) { ReachModule(contact: contact) }
@@ -60,14 +58,14 @@ struct PersonDetail: View {
                                 Label("Plan with \(p.shortName)", systemImage: "person.crop.circle.badge.checkmark")
                                     .sf(17, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 50)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.whole)
                             .glassEffect(.regular.tint(.mint.opacity(0.4)).interactive(), in: Capsule())
                         }
                     }
                     .padding(.horizontal, 16).padding(.bottom, 24)
                 }
                 .background {
-                    SkyBackground(person: p, minutes: m, time: reduceMotion ? 0 : ctx.date.timeIntervalSinceReferenceDate, flare: 1)
+                    SkyBackground(person: p, minutes: m, flare: 1, twinkle: true)
                         .ignoresSafeArea()
                 }
             }
@@ -103,7 +101,7 @@ struct PersonDetail: View {
             }
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(clock(l)).sf(96, .thin).tracking(-3).monospacedDigit()
-                Text(ampm(l.h)).sf(26, .light)
+                if !TimeFormat.twentyFour { Text(ampm(l.h)).sf(26, .light) }
             }
             .lineLimit(1).minimumScaleFactor(0.5)
             Text("\(status(p, l).0) · \(rel)").sf(17, .medium)
@@ -160,7 +158,7 @@ struct PersonDetail: View {
         // Their sunrise and sunset, as moments, so they can be shown in your time too.
         let theirStart = dayStart(p.tz, m)
         let rise = theirStart + s.rise * 60, set = theirStart + s.set * 60
-        func yours(_ t: Double) -> String { let h = Local(home.tz, t); return "\(clock(h)) \(ampm(h.h))" }
+        func yours(_ t: Double) -> String { let h = Local(home.tz, t); return "\(hm(h))" }
         let shared = sharedDaylight(home, p, from: start)
         return Module(title: "Sunrise and sunset", icon: "sunrise.fill") {
             VStack(alignment: .leading, spacing: 10) {
@@ -226,9 +224,10 @@ struct PersonDetail: View {
                     if !holidays.granted {
                         Text("See public holidays in \(country) from the holiday calendars in your Calendar app.")
                             .sf(15, .regular).opacity(0.85)
-                        Button("Show holidays") { Task { await holidays.enable() } }
-                            .sf(15, .semibold).padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 38)
-                            .buttonStyle(.plain)
+                        Button { Task { await holidays.enable() } } label: {
+                            Text("Show holidays").sf(15, .semibold).padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 38)
+                        }
+                            .buttonStyle(.whole)
                             .glassEffect(.regular.interactive(), in: Capsule())
                     } else if holidays.covers(p) {
                         ForEach(holidays.upcoming(p, from: l), id: \.day) { h in

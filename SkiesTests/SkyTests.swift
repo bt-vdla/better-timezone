@@ -3,6 +3,9 @@ import Foundation
 @testable import Skies
 
 struct SkyTests {
+    /// Answers are checked in 12-hour form, whatever this Mac uses; `timeFormats` checks both explicitly.
+    init() { TimeFormat.twentyFour = false }
+
     let team = Person.defaults
     var home: Person { team[0] }
     // Monday 2026-10-19 12:00 UTC: London still on BST, San Francisco on PDT.
@@ -22,6 +25,59 @@ struct SkyTests {
         #expect(runs.count == 1)
         #expect(runs.first.map { Local(home.tz, $0.lowerBound).f } == 20.5)
         #expect(runs.first.map { $0.upperBound - $0.lowerBound } == 90)
+    }
+
+    @Test func meetingsComeOutOfFreeTime() {
+        // A meeting 15:00–15:30 UTC (8:30–9 PM in Hyderabad) eats the start of the 8:30–10 PM window.
+        let meeting = (mondayNoonUTC + 180)...(mondayNoonUTC + 210)
+        let runs = freeRuns(team, from: dayStart(home.tz, mondayNoonUTC), slots: 96, busy: [meeting])
+        #expect(runs.first.map { Local(home.tz, $0.lowerBound).f } == 21)
+        #expect(runs.first.map { $0.upperBound - $0.lowerBound } == 60)
+        // Someone else's plan with nobody but them isn't affected by your calendar.
+        let theirs = freeRuns([team[1]], from: dayStart(home.tz, mondayNoonUTC), slots: 96, busy: [meeting])
+        #expect(theirs == freeRuns([team[1]], from: dayStart(home.tz, mondayNoonUTC), slots: 96, busy: []))
+    }
+
+    @Test func fairMeetings() {
+        let week = mondayNoonUTC...(mondayNoonUTC + 7 * 1440)
+        // Hyderabad and London share an afternoon: the best slot asks nobody to stretch, and starts on the half hour.
+        let easy = Fair.find([home, team[2]], minutes: 30, in: week, mode: nil, busy: [], history: [:])
+        #expect(easy.first.map { $0.stretch.values.allSatisfy { $0 == 0 } } == true)
+        #expect(easy.first.map { Local(home.tz, $0.start).m % 30 } == 0)
+        #expect(easy.count == 3)
+        // Hyderabad and San Francisco can't both be comfortable: someone stretches. Whoever stretched before is spared.
+        let sf = team[4]
+        let youStretched = Fair.find([home, sf], minutes: 30, in: week, mode: nil, busy: [], history: [home.id.uuidString: 2])
+        #expect(youStretched.first?.stretch[home.id] == 0)
+        #expect((youStretched.first?.stretch[sf.id] ?? 0) > 0)
+        let theyStretched = Fair.find([home, sf], minutes: 30, in: week, mode: nil, busy: [], history: [sf.id.uuidString: 2])
+        #expect(theyStretched.first?.stretch[sf.id] == 0)
+        // Asked in words.
+        let asked = Ask.hits("find 30 min for partners this week", people: team, now: mondayNoonUTC)
+        #expect(asked.first?.id == "fair-0")
+        #expect(asked.first?.headline == "30m · Inside everyone's day")
+        #expect(Ask.hits("best time for a 1h call with design review", people: team, now: mondayNoonUTC).first?.id == "fair-0")
+        #expect(Ask.hits("time for tokyo", people: team, now: mondayNoonUTC).first?.id.hasPrefix("fair") != true)
+    }
+
+    @Test func notificationTimes() {
+        // Mom's night ends at 6:30 AM her time (waking up, an hour and a half before her 8 AM): Tuesday and Wednesday.
+        let mom = Person(city: "Visakhapatnam", label: "Mom", tzID: "Asia/Kolkata", lat: 17.72, lon: 83.31, region: "IN")
+        let wakes = Nudges.wakeMoments(mom, from: mondayNoonUTC, days: 2)
+        #expect(wakes.count == 2)
+        #expect(wakes.allSatisfy { Local(mom.tz, $0).h == 6 && Local(mom.tz, $0).m == 30 })
+        // A birthday on Tuesday 20 Oct starts at midnight their time. In Tokyo that's your 8:30 PM: told as it starts.
+        var tokyo = Person(city: "Tokyo", label: "Ken", tzID: "Asia/Tokyo", lat: 35.68, lon: 139.65)
+        tokyo.contact = Person.Contact(id: "k", name: "Ken", birthday: DateComponents(month: 10, day: 20))
+        let t = Nudges.birthdayMoment(tokyo, home: home, from: mondayNoonUTC)
+        #expect(t.map { $0.at == $0.started } == true)
+        #expect(t.map { Local(tokyo.tz, $0.at).h } == 0)
+        // In London it starts at your 4:30 AM, so it waits for your 8 AM.
+        var london = Person(city: "London", label: "Sam", tzID: "Europe/London", lat: 51.5, lon: -0.13)
+        london.contact = Person.Contact(id: "s", name: "Sam", birthday: DateComponents(month: 10, day: 20))
+        let l = Nudges.birthdayMoment(london, home: home, from: mondayNoonUTC)
+        #expect(l.map { Local(home.tz, $0.at).h } == 8)
+        #expect(l.map { Local(london.tz, $0.started).h } == 0)
     }
 
     @Test func usClockChangeShrinksWindow() {
@@ -399,7 +455,11 @@ struct SkyTests {
         let ahead = Clocks.headsUp(team, now: now)
         #expect(ahead?.text == "Partners' clocks go back in 6 days")
         #expect(ahead?.short == "Clocks go back in 6d")
-        #expect(first(ahead!.ask, now)?.title == "After Sun, 25 Oct, Partners is 5h 30m behind you")
+        #expect(ahead?.ask == "Partners' clock change")
+        let chip = first(ahead!.ask, now)
+        #expect(chip?.title == "Partners' clocks go back 1h Sun, 25 Oct")
+        #expect(chip?.clocks.map { "\($0.time) \($0.day)" } == ["4h 30m behind you", "5h 30m behind you"])
+        #expect(first("after partners' clocks go back", now)?.title == "After Sun, 25 Oct, Partners is 5h 30m behind you")
         let behind = Clocks.headsUp(team, now: weekLater)
         #expect(behind?.text == "Partners' clocks went back yesterday")
         #expect(first(behind!.ask, weekLater)?.cue?.hasPrefix("Partners' clocks went back 1h yesterday") == true)
@@ -417,6 +477,25 @@ struct SkyTests {
         #expect(first("tokyo").hasSuffix("in Tokyo"))
         #expect(Ask.target("my team", team) == nil)   // no tags on the defaults
         #expect(Ask.target("partners and investor", team)?.members.count == 2)
+    }
+
+    @Test func timeFormats() {
+        let utc = TimeZone(identifier: "UTC")!
+        let afternoon = Local(utc, 15 * 60 + 5), morning = Local(utc, 9 * 60)
+        #expect(hm(afternoon, twentyFour: false) == "3:05 PM")
+        #expect(hm(afternoon, twentyFour: true) == "15:05")
+        #expect(hm(morning, twentyFour: true) == "09:00")
+        #expect(hourText(0, twentyFour: false) == "12 AM")
+        #expect(hourText(0, twentyFour: true) == "00:00")
+        #expect(clock(Local(utc, 0), twentyFour: false) == "12:00")
+    }
+
+    @Test func vividSkies() {
+        // Twilight gets richer, deep night lifts towards indigo, and nothing changes at zero.
+        let dusk = vivid(RGB(181, 103, 127), 0.35)
+        #expect(abs(dusk.x - 181) < 2 && dusk.y < 103)
+        #expect(vivid(RGB(2, 4, 12), 0.35).z > 12)
+        #expect(vivid(RGB(156, 203, 242), 0) == RGB(156, 203, 242))
     }
 
     @Test func durations() {

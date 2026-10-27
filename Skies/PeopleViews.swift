@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 import MapKit
 
 struct PeopleSheet: View {
@@ -37,6 +40,13 @@ struct PeopleSheet: View {
                 }
 
                 Section {
+                    CalendarToggle()
+                } footer: {
+                    Text("Free times leave out your meetings. Skies reads only when you're busy, on this device.")
+                }
+
+                Section {
+                    TimeFormatPicker()
                     Picker("Show people by", selection: $showBy) {
                         ForEach(ShowBy.allCases) { Text($0.title).tag($0) }
                     }
@@ -87,7 +97,7 @@ private struct PersonLabel: View {
 func hourText(_ h: Double) -> String {
     let h = (h.truncatingRemainder(dividingBy: 24) + 24).truncatingRemainder(dividingBy: 24)
     let hh = Int(h), mm = Int(((h - Double(hh)) * 60).rounded()) % 60
-    return mm == 0 ? "\(h12(hh)) \(ampm(hh))" : "\(h12(hh)):\(String(format: "%02d", mm)) \(ampm(hh))"
+    return mm == 0 ? hourText(hh) : hm(Local(TimeZone(identifier: "UTC")!, Double(hh * 60 + mm)))
 }
 
 private func hoursText(_ p: Person) -> String { "\(hourText(p.start))–\(hourText(p.end))" }
@@ -96,6 +106,16 @@ struct PersonEditor: View {
     @Binding var person: Person
     @State private var pickingContact = false
     private let halfHours = stride(from: 0.0, through: 24, by: 0.5).map { $0 }
+
+    /// A notification switch; turning one on asks for permission the first time.
+    private func notify(_ key: WritableKeyPath<Person.Notify, Bool>) -> Binding<Bool> {
+        Binding(get: { person.notify?[keyPath: key] ?? false }, set: { on in
+            var n = person.notify ?? Person.Notify()
+            n[keyPath: key] = on
+            person.notify = n
+            if on { Task { if !(await Nudges.ask()) { var off = person.notify ?? Person.Notify(); off[keyPath: key] = false; person.notify = off } } }
+        })
+    }
 
     var body: some View {
         Form {
@@ -158,6 +178,19 @@ struct PersonEditor: View {
                 Text("Shows their photo, adds Call, Message and FaceTime, and remembers their birthday.")
             }
 
+            if !person.isHome {
+                Section {
+                    Toggle("When they wake up", isOn: notify(\.wake))
+                    if person.contact?.birthday != nil {
+                        Toggle("On their birthday, their time", isOn: notify(\.birthday))
+                    }
+                } header: {
+                    Text("Let me know")
+                } footer: {
+                    Text("Quiet notifications. A birthday that starts in your night waits until your 8 AM.")
+                }
+            }
+
             Section {
                 Picker("From", selection: $person.start) {
                     ForEach(halfHours.dropLast(), id: \.self) { Text(hourText($0)).tag($0) }
@@ -194,7 +227,7 @@ private struct DayPicker: View {
                         .background(on ? Color.accentColor : Color.secondary.opacity(0.15), in: Circle())
                         .foregroundStyle(on ? .white : .primary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.whole)
                 .accessibilityLabel(Calendar.current.weekdaySymbols[d])
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
@@ -235,7 +268,10 @@ private struct DayPicker: View {
 }
 
 struct CitySearch: View {
+    /// Put the cursor in the search field on open (the Mac's Add a City window).
+    var focused = false
     let onPick: (Place) -> Void
+    @FocusState private var searching: Bool
     @State private var places = PlaceCompleter()
     @State private var resolving: String?
     @State private var problem: String?
@@ -258,7 +294,7 @@ struct CitySearch: View {
                     }
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.whole)
                 .disabled(resolving != nil)
             }
         }
@@ -267,6 +303,8 @@ struct CitySearch: View {
             else if places.results.isEmpty && !places.query.isEmpty && resolving == nil { ContentUnavailableView.search(text: places.query) }
         }
         .searchable(text: $places.query, prompt: "Any city or town")
+        .searchFocused($searching)
+        .onAppear { if focused { searching = true } }
         .onSubmit(of: .search) { Task { await pickBestMatch() } }
         .onChange(of: places.query) { problem = nil }
         .navigationTitle("Add a city")
@@ -334,6 +372,34 @@ extension People {
                   let region = item.addressRepresentations?.region?.identifier,
                   let i = list.firstIndex(where: { $0.id == p.id }) else { continue }
             list[i].region = region
+        }
+    }
+}
+
+/// System, 12-hour or 24-hour clocks, everywhere in Skies including widgets.
+struct TimeFormatPicker: View {
+    @AppStorage(TimeFormat.key, store: .skies) private var format = "system"
+    var body: some View {
+        Picker("Time format", selection: $format) {
+            Text("System").tag("system")
+            Text("12-hour").tag("12")
+            Text("24-hour").tag("24")
+        }
+        .onChange(of: format) {
+            TimeFormat.twentyFour = TimeFormat.read()
+            #if canImport(WidgetKit)
+            WidgetCenter.shared.reloadAllTimelines()
+            #endif
+        }
+    }
+}
+
+/// "Skip my meetings": your calendar's busy times come out of every free window.
+struct CalendarToggle: View {
+    @State private var calendars = Calendars.shared
+    var body: some View {
+        Toggle(isOn: Binding(get: { calendars.on }, set: { on in Task { await calendars.turn(on) } })) {
+            Label("Skip my meetings", systemImage: "calendar.badge.minus")
         }
     }
 }

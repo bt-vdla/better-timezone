@@ -47,6 +47,7 @@ struct ReachProvider: AppIntentTimelineProvider {
 
     /// Free and busy change on the quarter hour, so an entry every 15 minutes for three hours.
     func timeline(for c: ReachConfig, in context: Context) async -> Timeline<ReachEntry> {
+        TimeFormat.twentyFour = TimeFormat.read()
         let start = Date(timeIntervalSince1970: (nowMinutes() / 15).rounded(.down) * 15 * 60)
         return Timeline(entries: (0..<12).map { entry(at: start.addingTimeInterval(Double($0) * 900), tag: c.tag) }, policy: .atEnd)
     }
@@ -108,7 +109,7 @@ struct ReachView: View {
         let content = VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(p.name).font(.system(size: big ? 17 : 14, weight: .semibold)).lineLimit(1)
-                Text("\(clock(l)) \(ampm(l.h))").font(.system(size: big ? 12 : 11, weight: .medium)).monospacedDigit().opacity(0.8)
+                Text("\(hm(l))").font(.system(size: big ? 12 : 11, weight: .medium)).monospacedDigit().opacity(0.8)
                 if !big { Spacer(minLength: 4); channelButtons(p, max: buttons) }
             }
             if big { channelButtons(p, max: buttons) }

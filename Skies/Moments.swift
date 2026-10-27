@@ -75,7 +75,7 @@ import EventKitUI
     event.timeZone = home.tz
     event.notes = team.map { p in
         let l = Local(p.tz, snap(minutes))
-        return "\(p.isHome ? "You" : p.label.isEmpty ? p.city : p.label) (\(p.city)): \(clock(l)) \(ampm(l.h)) \(Calendar.current.shortWeekdaySymbols[l.wd])"
+        return "\(p.isHome ? "You" : p.label.isEmpty ? p.city : p.label) (\(p.city)): \(hm(l)) \(Calendar.current.shortWeekdaySymbols[l.wd])"
     }.joined(separator: "\n") + "\n\nPlanned with Skies"
     return event
 }
@@ -152,7 +152,7 @@ struct MomentCard: Transferable {
         let m = snap(minutes)
         let lines = team.map { p in
             let l = Local(p.tz, m)
-            return "\(p.cardName) \(clock(l)) \(ampm(l.h)) \(Calendar.current.shortWeekdaySymbols[l.wd])"
+            return "\(p.cardName) \(hm(l)) \(Calendar.current.shortWeekdaySymbols[l.wd])"
         }
         return "\(talk ? "Let's talk" : "Let's meet"): " + lines.joined(separator: " · ")
     }
@@ -178,7 +178,7 @@ struct MomentCardView: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(clock(l)) \(ampm(l.h))").font(.sf(26, .light)).monospacedDigit()
+                        Text("\(hm(l))").font(.sf(26, .light)).monospacedDigit()
                         Text(Calendar.current.weekdaySymbols[l.wd]).font(.sf(13, .medium)).opacity(0.8)
                     }
                 }
@@ -196,4 +196,40 @@ struct MomentCardView: View {
 extension Person {
     /// Who they are on a shared card: you, their first name, their label, or (last resort) the city.
     var cardName: String { isHome ? "Me" : contact?.firstName ?? label.nonEmpty ?? city }
+}
+
+// MARK: - Your calendar
+
+/// Your meetings, so free windows skip them. Opt-in: it needs full calendar access, like holidays.
+@MainActor @Observable final class Calendars {
+    static let shared = Calendars()
+    static let key = "useCalendar"
+    private(set) var on = UserDefaults.skies.bool(forKey: key)
+    @ObservationIgnored private let store = EKEventStore()
+    @ObservationIgnored private var watching: Any?
+
+    func turn(_ on: Bool) async {
+        if on, EKEventStore.authorizationStatus(for: .event) != .fullAccess {
+            guard (try? await store.requestFullAccessToEvents()) == true else { self.on = false; return }
+        }
+        self.on = on
+        UserDefaults.skies.set(on, forKey: Self.key)
+        load()
+    }
+
+    /// Busy events for the next eight days: not all-day, not marked free, not cancelled or declined.
+    func load() {
+        defer { People.shared.refreshRuns() }
+        guard on, EKEventStore.authorizationStatus(for: .event) == .fullAccess else { BusyTimes.current = []; return }
+        let start = Date.now.addingTimeInterval(-86400), end = start.addingTimeInterval(9 * 86400)
+        BusyTimes.current = store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil))
+            .filter { !$0.isAllDay && $0.availability != .free && $0.status != .canceled
+                && $0.attendees?.first(where: \.isCurrentUser)?.participantStatus != .declined }
+            .map { ($0.startDate.timeIntervalSince1970 / 60)...($0.endDate.timeIntervalSince1970 / 60) }
+        if watching == nil {
+            watching = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: store, queue: .main) { _ in
+                MainActor.assumeIsolated { Calendars.shared.load() }
+            }
+        }
+    }
 }

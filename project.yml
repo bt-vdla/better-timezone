@@ -12,13 +12,24 @@ targets:
     type: application
     supportedDestinations: [iOS, macOS]
     sources: [Skies]
+    # The Mac's Services menu: select a time anywhere, "Convert Time with Skies". iOS ignores it.
+    info:
+      path: Skies/Info.plist
+      properties:
+        NSServices:
+          - NSMenuItem:
+              default: Convert Time with Skies
+            NSMessage: convertTime
+            NSPortName: Skies
+            NSSendTypes: [public.utf8-plain-text, NSStringPboardType]
+            NSRequiredContext: {}
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.btstd.skies
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: "6.0"
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "3"
+        MARKETING_VERSION: "1.1"
+        CURRENT_PROJECT_VERSION: "4"
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Skies
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -67,6 +78,7 @@ targets:
       - path: Skies/Airports.swift
       - path: Skies/Tags.swift
       - path: Skies/SharedIntents.swift
+      - path: Skies/Grain.swift
       - path: Skies/airports.csv
     info:
       path: SkiesWidgets/Info.plist
@@ -80,8 +92,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.btstd.skies.widgets
         SWIFT_VERSION: "6.0"
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "3"
+        MARKETING_VERSION: "1.1"
+        CURRENT_PROJECT_VERSION: "4"
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "Apple Development"
         CODE_SIGN_ENTITLEMENTS: SkiesWidgets/SkiesWidgets.entitlements

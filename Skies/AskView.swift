@@ -93,7 +93,7 @@ struct AskView: View {
                                 .background(selection == index && h.action != nil ? Color.white.opacity(0.1) : .clear,
                                             in: RoundedRectangle(cornerRadius: compact ? 8 : 12, style: .continuous))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.whole)
                         .disabled(h.action == nil)
                     }
                 }
@@ -150,7 +150,7 @@ struct AskView: View {
                         .frame(width: compact ? 20 : 30, height: compact ? 20 : 30)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.whole)
                 .accessibilityLabel(query.isEmpty ? "Close" : "Clear")
                 .transition(.opacity)
             }
@@ -189,7 +189,7 @@ struct AskView: View {
                             .background(.white.opacity(0.1), in: Capsule())
                             .contentShape(Capsule())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.whole)
                 }
             }
             .padding(.horizontal, compact ? 2 : 0)
@@ -283,7 +283,10 @@ struct AnswerCard: View {
             SkyBackground(person: p, minutes: hit.at ?? nowMinutes(), flare: 0, discs: false)
         } else {
             let c = hit.color.map { Color($0) } ?? .sun
-            LinearGradient(colors: [c.opacity(0.35), Color(hex: 0x0E1430)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            ZStack {
+                LinearGradient(colors: [c.opacity(0.35), Color(hex: 0x0E1430)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Grain()
+            }
         }
     }
 }

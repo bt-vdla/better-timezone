@@ -125,3 +125,19 @@ func snap(_ m: Double) -> Double { (m / 15).rounded() * 15 }
         over * dim * c / (dim + c * abs(over))
     }
 }
+
+/// Every frame while the sky moves; at rest, once a minute on the minute, since no clock shows seconds.
+/// The frame clock stays the same view, paused, so scrubbing never rebuilds the screen.
+struct SkyClock<Content: View>: View {
+    let moving: Bool
+    @ViewBuilder let content: (Date) -> Content
+    @Environment(\.offscreen) private var offscreen
+
+    var body: some View {
+        TimelineView(.everyMinute) { minute in
+            TimelineView(.animation(paused: !moving || offscreen)) { frame in
+                content(moving ? max(frame.date, .now) : minute.date)
+            }
+        }
+    }
+}

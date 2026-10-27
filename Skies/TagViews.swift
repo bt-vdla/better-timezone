@@ -237,7 +237,7 @@ struct TagEditor: View {
                             Circle().fill(Color(Tags.palette[i])).frame(width: 26, height: 26)
                                 .overlay { if tag.color % Tags.palette.count == i { Image(systemName: "checkmark").font(.sf(12, .bold)).foregroundStyle(.white) } }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.whole)
                         .accessibilityLabel("Colour \(i + 1)")
                     }
                 }
@@ -350,11 +350,79 @@ enum Nudges {
             let content = UNMutableNotificationContent()
             content.title = "Good time for \(t.name)"
             let e = Local(home.tz, w.end)
-            content.body = "You're all free until \(clock(e)) \(ampm(e.h))."
+            content.body = "You're all free until \(hm(e))."
             content.sound = .default
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, (w.start - now) * 60), repeats: false)
             try? await center.add(UNNotificationRequest(identifier: "nudge.\(t.id)", content: content, trigger: trigger))
         }
+        await schedulePeople(people, home: home, now: now)
+    }
+
+    /// Per-person notes: when they wake up (the next six mornings), and their birthday as it starts for them.
+    @MainActor private static func schedulePeople(_ people: [Person], home: Person, now: Double) async {
+        let center = UNUserNotificationCenter.current()
+        let old = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix("wake.") || $0.hasPrefix("bday.") }
+        center.removePendingNotificationRequests(withIdentifiers: old)
+        for p in people where !p.isHome {
+            if p.notify?.wake == true {
+                for (i, m) in wakeMoments(p, from: now, days: 6).enumerated() {
+                    let l = Local(p.tz, m)
+                    let content = UNMutableNotificationContent()
+                    content.title = "\(p.name)'s waking up"
+                    let free = nextWindow([home, p], mode: p.relation, after: m)
+                    content.body = "It's \(hm(l)) there." + (free.map { " Free to talk from your \(hm(Local(home.tz, $0.start)))." } ?? "")
+                    content.sound = .default
+                    content.interruptionLevel = .passive
+                    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, (m - now) * 60), repeats: false)
+                    try? await center.add(UNNotificationRequest(identifier: "wake.\(p.id).\(i)", content: content, trigger: trigger))
+                }
+            }
+            if p.notify?.birthday == true, let b = birthdayMoment(p, home: home, from: now) {
+                let content = UNMutableNotificationContent()
+                content.title = "It's \(p.name)'s birthday"
+                let theirs = Local(p.tz, b.at)
+                content.body = b.started == b.at ? "It's just begun, their time. Say happy birthday."
+                    : "It began at midnight their time; it's \(hm(theirs)) there now."
+                content.sound = .default
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, (b.at - now) * 60), repeats: false)
+                try? await center.add(UNNotificationRequest(identifier: "bday.\(p.id)", content: content, trigger: trigger))
+            }
+        }
+    }
+
+    /// The moments in the next `days` days when their night ends (status leaves "Asleep"), on the quarter hour.
+    static func wakeMoments(_ p: Person, from now: Double, days: Int) -> [Double] {
+        var out: [Double] = []
+        var m = (now / 15).rounded(.up) * 15
+        var asleep = status(p, Local(p.tz, m)).0 == "Asleep"
+        while m < now + Double(days) * 1440 {
+            m += 15
+            let a = status(p, Local(p.tz, m)).0 == "Asleep"
+            if asleep && !a { out.append(m) }
+            asleep = a
+        }
+        return out
+    }
+
+    /// When to mention their next birthday: as it starts for them, unless that's your night (10 PM–8 AM), then at
+    /// your 8 AM. `started` is midnight their time.
+    static func birthdayMoment(_ p: Person, home: Person, from now: Double) -> (at: Double, started: Double)? {
+        guard let bd = p.contact?.birthday, let month = bd.month, let day = bd.day else { return nil }
+        var d = dayStart(p.tz, now)
+        for _ in 0..<367 {
+            let c = gmtDay(Local(p.tz, d + 720).dn)
+            if c.month == month && c.day == day && d + 1440 > now {
+                let start = max(d, now)
+                let yours = Local(home.tz, start).f
+                if yours >= 22 || yours < 8 {
+                    let morning = dayStart(home.tz, start + (yours >= 22 ? 1440 : 0)) + 8 * 60
+                    return morning < d + 1440 ? (morning, d) : (start, d)
+                }
+                return (start, d)
+            }
+            d = dayStart(p.tz, d + 1440 + 720)
+        }
+        return nil
     }
 }
 

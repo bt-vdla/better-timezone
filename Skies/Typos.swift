@@ -13,7 +13,8 @@ enum Typos {
         am pm hour hours hr hrs min mins minute minutes ago later ahead back before half an one everyone everybody all \
         them people show dst daylight saving savings clock clocks change changes summer winter standard forward observe \
         does do did there go spring fall switch have use on after once ends end starts start begins over relation \
-        relative compared versus vs gap difference between ahead behind sunday monday tuesday wednesday thursday friday saturday sun mon tue wed thu fri sat
+        relative compared versus vs gap difference between ahead behind find book schedule plan suggest pick arrange slot \
+        meeting sync week weekend fairest good sunday monday tuesday wednesday thursday friday saturday sun mon tue wed thu fri sat
         """.split(whereSeparator: \.isWhitespace).map(String.init)
 
     struct Word { let text: String; let prior: Double }

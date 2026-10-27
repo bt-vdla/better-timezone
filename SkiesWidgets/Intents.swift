@@ -84,6 +84,8 @@ enum TimeTravel {
     static func set(_ minutes: Double) {
         UserDefaults.skies.set(max(-24 * 60, min(24 * 60, minutes)), forKey: offsetKey)
         UserDefaults.skies.set(Date.now, forKey: atKey)
+        // Only the widgets that show the offset; the next-window widget has nothing to redraw.
+        for kind in ["person", "stack"] { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
     }
 }
 
@@ -99,7 +101,6 @@ struct TravelIntent: AppIntent {
 
     func perform() async throws -> some IntentResult {
         TimeTravel.set(Double(minutes))
-        WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
 }
@@ -139,9 +140,8 @@ struct ShiftTimeIntent: AppIntent {
     init(minutes: Int) { self.minutes = minutes }
 
     func perform() async throws -> some IntentResult {
-        TimeTravel.shift(by: Double(minutes))
         // The offset is shared, so every Skies widget moves together, not just the one tapped.
-        WidgetCenter.shared.reloadAllTimelines()
+        TimeTravel.shift(by: Double(minutes))
         return .result()
     }
 }

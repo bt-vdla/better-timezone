@@ -33,8 +33,8 @@ struct PlannerSheet: View {
 
     var body: some View {
         NavigationStack {
-            TimelineView(.animation(minimumInterval: model.isMoving ? nil : 1)) { ctx in
-                let m = model.minutes(at: ctx.date), now = nowMinutes(ctx.date)
+            SkyClock(moving: model.isMoving) { date in
+                let m = model.minutes(at: date), now = nowMinutes(date)
                 ScrollView {
                     VStack(spacing: 14) {
                         moment(m: m)
@@ -71,20 +71,20 @@ struct PlannerSheet: View {
     private func moment(m: Double) -> some View {
         let h = Local(home.tz, snap(m))
         let card = MomentCard(team: people.team, minutes: m, talk: people.mode == .personal)
-        return Module(title: "\(Calendar.current.weekdaySymbols[h.wd]) \(clock(h)) \(ampm(h.h))", icon: "clock.badge.checkmark") {
+        return Module(title: "\(Calendar.current.weekdaySymbols[h.wd]) \(hm(h))", icon: "clock.badge.checkmark") {
             (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))) {
                 Button { addToCalendar(at: m) } label: {
                     Label("Add to Calendar", systemImage: "calendar.badge.plus")
                         .sf(15, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.whole)
                 .glassEffect(.regular.interactive(), in: Capsule())
                 ShareLink(item: card, subject: Text(card.talk ? "Let's talk" : "Let's meet"), message: Text(card.text),
                           preview: SharePreview(card.text, image: Image(systemName: "sun.horizon.fill"))) {
                     Label("Send", systemImage: "square.and.arrow.up")
                         .sf(15, .semibold).padding(.vertical, 6).frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.whole)
                 .glassEffect(.regular.interactive(), in: Capsule())
             }
         }
@@ -179,7 +179,7 @@ struct PlannerSheet: View {
                         let up = sunPosition(home, t + 30).elev > 0
                         Button { model.springTo(t, response: 0.5) } label: {
                             VStack(spacing: 8) {
-                                Text(k == 0 ? "Now" : "\(h12(l.h)) \(ampm(l.h))").sf(13, .semibold)
+                                Text(k == 0 ? "Now" : "\(hourText(l.h))").sf(13, .semibold)
                                 Image(systemName: up ? "sun.max.fill" : "moon.stars.fill")
                                     .symbolRenderingMode(.multicolor).sf(18, .regular).frame(minHeight: 22)
                                 Text("\(free)/\(people.team.count)").sf(13, .medium).monospacedDigit()
@@ -189,7 +189,7 @@ struct PlannerSheet: View {
                             .background(all ? Color.mint.opacity(0.16) : .clear, in: RoundedRectangle(cornerRadius: 14))
                         }
                         .buttonStyle(PressScale())
-                        .accessibilityLabel("\(h12(l.h)) \(ampm(l.h)), \(free) of \(people.team.count) free")
+                        .accessibilityLabel("\(hourText(l.h)), \(free) of \(people.team.count) free")
                     }
                 }
             }
