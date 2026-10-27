@@ -60,6 +60,10 @@ struct PeopleSheet: View {
                         onboarded = false
                     }
                 }
+
+                Section {
+                    NavigationLink { ReleaseLog() } label: { VersionLabel() }
+                }
             }
             .navigationTitle("People")
             .toolbar {

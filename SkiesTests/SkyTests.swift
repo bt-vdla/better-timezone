@@ -60,6 +60,24 @@ struct SkyTests {
         #expect(Ask.hits("time for tokyo", people: team, now: mondayNoonUTC).first?.id.hasPrefix("fair") != true)
     }
 
+    /// "can I call … now" asks about this minute, so it gets the same yes or not-now as "is … free".
+    @Test func callNow() {
+        let sf = team[4], name = sf.name.lowercased(), ask = "ask-\(sf.id)"
+        for q in ["can i call \(name) now", "Can I call \(name)?", "could we talk to \(name) right now",
+                  "is it a good time to call \(name)", "is now a good time to ring \(name)", "ok to call \(name) rn"] {
+            #expect(Ask.hits(q, people: team, now: mondayNoonUTC).first?.id == ask, "\(q)")
+        }
+        #expect(Ask.hits("when can i call \(name)", people: team, now: mondayNoonUTC).first?.id == "when")
+    }
+
+    /// A version or build bump without a line in the version log fails here.
+    @Test func versionLogged() {
+        #expect(Release.all.first?.version == Release.installedVersion)
+        #expect(Release.all.first?.build == Release.installedBuild)
+        #expect(zip(Release.all, Release.all.dropFirst()).allSatisfy { $0.build > $1.build })
+        #expect(Release.all.allSatisfy { !$0.changes.isEmpty })
+    }
+
     @Test func notificationTimes() {
         // Mom's night ends at 6:30 AM her time (waking up, an hour and a half before her 8 AM): Tuesday and Wednesday.
         let mom = Person(city: "Visakhapatnam", label: "Mom", tzID: "Asia/Kolkata", lat: 17.72, lon: 83.31, region: "IN")

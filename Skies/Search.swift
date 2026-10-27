@@ -416,6 +416,8 @@ enum Ask {
         } else if let m = q.firstMatch(of: /^(?:is|are)\s+(.+?)\s+(awake|up|asleep|sleeping|free|available|around|busy|working|at work|online)$/),
            let who = target(String(m.1), people) {
             out += who.members.prefix(6).map { awake($0, home: home, now: now, asked: String(m.2)) }
+        } else if let phrase = nowPhrase(q), let who = target(phrase, people) {
+            out += who.members.prefix(6).map { awake($0, home: home, now: now, asked: "free") }
         } else if let phrase = whenPhrase(q), let who = target(phrase, people) {
             out.append(when(who, home: home, now: now))
         } else if let m = q.firstMatch(of: /^(?:what(?:'s| is)?\s+)?(?:the\s+)?time\s+(?:is it\s+)?(?:in|for|at)\s+(.+)$/) {
@@ -480,9 +482,23 @@ enum Ask {
         return (name, members, parts.count == 1 ? tag : nil)
     }
 
+    private static let verbs = "(?:speak|talk|call|meet|chat|ring|reach|catch|see|phone|facetime|video call|catch up)"
+
+    /// The who in "can I call … now", "is it a good time to call …", "ok to ring … right now": asked about this minute.
+    private static func nowPhrase(_ q: String) -> String? {
+        let now = "(?:\\s+(?:now|right now|rn|at the moment|atm))?"
+        let patterns = [
+            "^(?:can|could|should|shall|may)\\s+(?:i|we)\\s+\(verbs)(?:\\s+(?:to|with|up with))?\\s+(.+?)\(now)$",
+            "^(?:is\\s+(?:it|now|this)\\s+)?(?:a\\s+)?(?:good|ok|okay|fine|alright)\\s+(?:time\\s+)?to\\s+\(verbs)(?:\\s+(?:to|with))?\\s+(.+?)\(now)$",
+        ]
+        for p in patterns {
+            if let r = try? Regex(p), let m = q.firstMatch(of: r), let cap = m.output[1].substring { return String(cap) }
+        }
+        return nil
+    }
+
     /// The who in "when can I speak to …", "when is … free", "best time to call …", "call …".
     private static func whenPhrase(_ q: String) -> String? {
-        let verbs = "(?:speak|talk|call|meet|chat|ring|reach|catch|see|phone|facetime|video call|catch up)"
         let patterns = [
             "^(?:when|what time)\\s+(?:can|could|should|shall|do|will|would)\\s+(?:i|we)\\s+\(verbs)(?:\\s+(?:to|with|up with))?\\s+(.+)$",
             "^when\\s+(?:is|are)\\s+(.+?)\\s+(?:free|available|around|awake|up)$",

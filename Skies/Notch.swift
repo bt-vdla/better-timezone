@@ -821,18 +821,26 @@ struct MenuBarClockPicker: View {
 struct SkiesSettings: View {
     @AppStorage(ShowBy.key, store: .skies) private var showBy: ShowBy = .name
     var body: some View {
-        Form {
-            LabeledContent("Open Skies in the notch") { ShortcutRecorder() }
-            TimeFormatPicker()
-            CalendarToggle()
-            Picker("Show people by", selection: $showBy) {
-                ForEach(ShowBy.allCases) { Text($0.title).tag($0) }
+        TabView {
+            Tab("General", systemImage: "gearshape") {
+                Form {
+                    LabeledContent("Open Skies in the notch") { ShortcutRecorder() }
+                    TimeFormatPicker()
+                    CalendarToggle()
+                    Picker("Show people by", selection: $showBy) {
+                        ForEach(ShowBy.allCases) { Text($0.title).tag($0) }
+                    }
+                    Text("Skies only opens with this shortcut, so it never clashes with other notch apps that use hover or swipes.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    VersionLabel()
+                }
+                .formStyle(.grouped)
             }
-            Text("Skies only opens with this shortcut, so it never clashes with other notch apps that use hover or swipes.")
-                .font(.footnote).foregroundStyle(.secondary)
+            Tab("Versions", systemImage: "clock.arrow.circlepath") {
+                ReleaseLog().frame(height: 460)
+            }
         }
-        .formStyle(.grouped)
-        .frame(width: 440)
+        .frame(width: 480)
     }
 }
 

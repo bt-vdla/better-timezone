@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		05329B5F8377E21577539621 /* countries.csv in Resources */ = {isa = PBXBuildFile; fileRef = 3D6F2E34E89098D01F37622D /* countries.csv */; };
 		0CFE0CCAE56901EE6BB017FA /* airports.csv in Resources */ = {isa = PBXBuildFile; fileRef = 814677788BBC53D08024437E /* airports.csv */; };
+		24E03BC66C755852B35FF263 /* Releases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AE61A1A0DD712AD58B46061 /* Releases.swift */; };
 		252D981C9F5C1BCADACA27EA /* SkyBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC6F410F694BB5D05F0E7216 /* SkyBackground.swift */; };
 		2F097AA97DE0273D6E9FAECD /* MoreWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75A86C47666F8AF4839DE893 /* MoreWidgets.swift */; };
 		3D25A65CAA0E4CA90B56C56D /* SkiesWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 121E59F83ED10F9C185D8F83 /* SkiesWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -94,6 +95,7 @@
 		25801DA363D61723BF70C5C8 /* Sky.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Sky.metal; sourceTree = "<group>"; };
 		2BC2A6C7020086683C0AEF84 /* Fair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fair.swift; sourceTree = "<group>"; };
 		2D4A97F7DEB4B5653CD60056 /* Planner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Planner.swift; sourceTree = "<group>"; };
+		3AE61A1A0DD712AD58B46061 /* Releases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Releases.swift; sourceTree = "<group>"; };
 		3CC9F6C2BB65675DBB943143 /* AskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskView.swift; sourceTree = "<group>"; };
 		3D6F2E34E89098D01F37622D /* countries.csv */ = {isa = PBXFileReference; path = countries.csv; sourceTree = "<group>"; };
 		4010E04CB8567AA0E800D21E /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
@@ -168,6 +170,7 @@
 				D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */,
 				5FD2C742802CE6055413F352 /* PersonPage.swift */,
 				2D4A97F7DEB4B5653CD60056 /* Planner.swift */,
+				3AE61A1A0DD712AD58B46061 /* Releases.swift */,
 				D29562640800AF3AEF507AA0 /* Scrubber.swift */,
 				A8D6F38F01A6FCE41E4AF2BE /* Search.swift */,
 				CECDCA57ADE21212596C4E48 /* SharedIntents.swift */,
@@ -368,6 +371,7 @@
 				9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */,
 				67F9A043D98F205CA87C74B8 /* PersonPage.swift in Sources */,
 				A2E88BC37953DBC3004D127E /* Planner.swift in Sources */,
+				24E03BC66C755852B35FF263 /* Releases.swift in Sources */,
 				5E73686C0862473F6D06557A /* Scrubber.swift in Sources */,
 				A9E85E48CD9D3A1958E411B8 /* Search.swift in Sources */,
 				7E685F8A75441B891C6AAD46 /* SharedIntents.swift in Sources */,
@@ -497,7 +501,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SkiesWidgets/SkiesWidgets-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = SkiesWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -505,7 +509,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies.widgets;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -524,7 +528,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SkiesWidgets/SkiesWidgets-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = SkiesWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -532,7 +536,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies.widgets;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -617,7 +621,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Skies/Skies-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
@@ -638,7 +642,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -658,7 +662,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Skies/Skies-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
@@ -679,7 +683,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
