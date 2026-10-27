@@ -327,7 +327,9 @@ struct NotchView: View {
         let gap = AskView.Compact.gap
         if state.searching {
             let hits = Ask.hits(state.query, people: people.list, now: nowMinutes(), extra: state.places.zones)
-            return strip + AskView.Compact.height(hits) + gap
+            let corrected = Ask.readAs(state.query, people: people.list, now: nowMinutes(), extra: state.places.zones) != nil
+            // The same inset below the answers as at the sides, so the card's corners nest in the notch's.
+            return strip + AskView.Compact.height(hits, corrected: corrected) + AskView.Compact.inset
         }
         let skies = listed ? CGFloat((people.visible.count + 1) / 2) * 34 - 6 : 64
         return strip + AskView.Compact.field + gap + skies + gap + 34 + gap
@@ -346,7 +348,7 @@ struct NotchView: View {
             // seamlessly, then growing into soft shoulders; the countdown ears sit in between.
             let flare: CGFloat = state.shapeOpen ? 18 : soon != nil ? 10 : 6
             let size = CGSize(width: panelBody.width + (panelBody.width == 0 ? 0 : 2 * flare), height: panelBody.height)
-            let radius: CGFloat = state.shapeOpen ? 32 : soon != nil ? min(14, closed.height * 0.45) : min(10, closed.height / 2)
+            let radius: CGFloat = state.shapeOpen ? AskView.Compact.outer : soon != nil ? min(14, closed.height * 0.45) : min(10, closed.height / 2)
             let shape = NotchShape(top: closed.height == 0 && !state.shapeOpen ? 0 : flare, bottom: radius)
             let hidden = state.resting && soon == nil
 
@@ -419,6 +421,15 @@ struct NotchView: View {
                 HStack(spacing: 6) {
                     Text(when).font(.sf(13, .semibold)).monospacedDigit()
                     Text(date).font(.sf(12, .medium)).opacity(0.6)
+                    // A clock change coming up (or just gone) that moves someone's gap to you: click to ask about it.
+                    if let heads = Clocks.headsUp(people.list, now: now), !state.searching {
+                        Button { state.query = heads.ask } label: {
+                            Label(heads.short, systemImage: "clock.arrow.2.circlepath").labelStyle(TightLabel())
+                                .font(.sf(11, .semibold)).foregroundStyle(Color.sun).lineLimit(1)
+                        }
+                        .buttonStyle(.plain)
+                        .help(heads.text)
+                    }
                     if abs(delta) >= 1 {
                         Button("Now") { state.model.goNow() }
                             .font(.sf(11, .semibold)).foregroundStyle(Color(hex: 0x1D1603))
@@ -439,7 +450,7 @@ struct NotchView: View {
                     placeholder: prompt(time), emptyKey: scrubKey, refocus: state.contentShown, run: run) {
                 NotchController.shared.close()
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, AskView.Compact.inset)
 
             if !state.searching {
                 Group {
@@ -449,7 +460,7 @@ struct NotchView: View {
                         HStack(spacing: 8) { skies(m: m, time: time) }
                     }
                 }
-                .padding(.horizontal, 14)
+                .padding(.horizontal, AskView.Compact.inset)
                 .transition(.opacity)
 
                 Tape(m: m, now: now, hourKey: Int(((m + Double(h.off)) / 60).rounded(.down)),
@@ -461,7 +472,7 @@ struct NotchView: View {
                     .transition(.opacity)
             }
         }
-        .padding(.bottom, AskView.Compact.gap)
+        .padding(.bottom, state.searching ? AskView.Compact.inset : AskView.Compact.gap)
     }
 
     private func skies(m: Double, time: Double) -> some View {

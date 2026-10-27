@@ -28,22 +28,49 @@ struct AskView: View {
 
     /// The notch's metrics, in one place, so its height is measured from the same numbers the layout uses.
     enum Compact {
-        static let field: CGFloat = 30, gap: CGFloat = 8, card: CGFloat = 64, row: CGFloat = 32, rowGap: CGFloat = 2
+        static let field: CGFloat = 30, gap: CGFloat = 8, card: CGFloat = 64, row: CGFloat = 32, rowGap: CGFloat = 2, readAs: CGFloat = 14
+
+        /// The open notch's corner and how far its content sits in from the edge, on all three sides while asking.
+        static let outer: CGFloat = 32, inset: CGFloat = 14
+        /// Concentric with the notch: an inner corner is the outer one less the gap between them.
+        static let cardRadius: CGFloat = outer - inset
+        /// The field is a smaller, separate shape higher up: rounder than the rows, softer than the card.
+        static let fieldRadius: CGFloat = 12
+
+        /// The card grows a line for a clock-change cue.
+        static func cardHeight(_ hit: Hit) -> CGFloat { card + (hit.cue == nil ? 0 : 16) }
 
         /// Height of the compact view once something's typed.
-        static func height(_ hits: [Hit]) -> CGFloat {
+        static func height(_ hits: [Hit], corrected: Bool = false) -> CGFloat {
             let l = AskView.rows(hits)
-            if hits.isEmpty { return field + gap + row }
-            return field + (l.card ? gap + card : 0)
+            let top = field + (corrected ? gap + readAs : 0)
+            if hits.isEmpty { return top + gap + row }
+            return top + (l.card ? gap + cardHeight(hits[0]) : 0)
                 + (l.rows > 0 ? gap + CGFloat(l.rows) * row + CGFloat(l.rows - 1) * rowGap : 0)
         }
     }
 
     var body: some View {
         let hits = Ask.hits(query, people: people.list, now: nowMinutes(), extra: places.zones)
+        let readAs = Ask.readAs(query, people: people.list, now: nowMinutes(), extra: places.zones)
         let layout = Self.rows(hits)
         VStack(alignment: .leading, spacing: compact ? Compact.gap : 14) {
             field(hits)
+            // What a typo was taken to mean, so a correction is never a surprise.
+            if let readAs {
+                Label {
+                    Text("Read as \u{201C}\(readAs)\u{201D}")
+                } icon: {
+                    Image(systemName: "wand.and.sparkles")
+                }
+                .labelStyle(TightLabel())
+                .font(.sf(compact ? 11 : 13, .medium))
+                .foregroundStyle(.white.opacity(0.55))
+                .lineLimit(1)
+                .frame(height: compact ? Compact.readAs : nil, alignment: .leading)
+                .padding(.horizontal, compact ? 10 : 4)
+                .transition(.opacity)
+            }
             if query.trimmingCharacters(in: .whitespaces).isEmpty {
                 if examples { examplesView }
             } else if hits.isEmpty {
@@ -131,9 +158,9 @@ struct AskView: View {
         .padding(.horizontal, compact ? 10 : 16)
         .frame(height: compact ? Compact.field : 56)
         // A lighter fill than the tiles (it's the control), and a rim that brightens only once you're typing.
-        .background(.white.opacity(compact ? 0.09 : 0.08), in: RoundedRectangle(cornerRadius: compact ? 9 : 16, style: .continuous))
+        .background(.white.opacity(compact ? 0.09 : 0.08), in: RoundedRectangle(cornerRadius: compact ? Compact.fieldRadius : 16, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: compact ? 9 : 16, style: .continuous)
+            RoundedRectangle(cornerRadius: compact ? Compact.fieldRadius : 16, style: .continuous)
                 .strokeBorder(.white.opacity(query.isEmpty ? 0.08 : 0.2), lineWidth: 1)
         }
         .animation(.easeOutStrong(0.2), value: query.isEmpty)
@@ -188,22 +215,21 @@ struct AnswerCard: View {
                     if let note = hit.note ?? (hit.clocks.isEmpty ? hit.detail : nil), !compact || hit.clocks.isEmpty {
                         Text(note).font(.sf(compact ? 11 : 13, .medium)).opacity(0.75).lineLimit(2)
                     }
-                    // Top-aligned columns: labels, times and days each share a line across the card.
-                    HStack(alignment: .top, spacing: compact ? 10 : 16) {
-                        ForEach(Array(hit.clocks.enumerated()), id: \.offset) { i, c in
-                            if i > 0 {
-                                Image(systemName: "arrow.right").font(.sf(compact ? 10 : 13, .semibold)).opacity(0.5)
-                                    .padding(.top, compact ? 16 : 24)
-                            }
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(c.place.uppercased()).font(.sf(compact ? 9 : 11, .semibold)).tracking(0.6).opacity(0.7).lineLimit(1)
-                                // One size for every clock on the card, so they always read as a pair.
-                                Text(c.time).font(.sf(clockSize, .light)).monospacedDigit().lineLimit(1)
-                                if !compact { Text(c.day).font(.sf(12, .medium)).opacity(0.7) }
-                            }
-                        }
+                    // The biggest size at which both clocks fit whole, the same for both, so they read as a pair.
+                    ViewThatFits(in: .horizontal) {
+                        ForEach(sizes, id: \.self) { clocksRow($0) }
                     }
                     .padding(.top, compact ? 0 : 4)
+                    // A clock change that affects this answer.
+                    if let cue = hit.cue {
+                        Label(cue, systemImage: "clock.arrow.2.circlepath")
+                            .labelStyle(TightLabel())
+                            .font(.sf(compact ? 11 : 13, .medium))
+                            .foregroundStyle(Color.sun)
+                            .lineLimit(compact ? 1 : 2)
+                            .minimumScaleFactor(0.85)
+                            .padding(.top, compact ? 0 : 2)
+                    }
                 }
                 Spacer(minLength: 0)
                 if hit.action != nil {
@@ -212,23 +238,43 @@ struct AnswerCard: View {
             }
             .skyLegible()
             .padding(compact ? 10 : 18)
-            .frame(maxWidth: .infinity, minHeight: compact ? AskView.Compact.card : 150, maxHeight: compact ? AskView.Compact.card : nil, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: compact ? AskView.Compact.cardHeight(hit) : 150,
+                   maxHeight: compact ? AskView.Compact.cardHeight(hit) : nil, alignment: .leading)
             .background { background }
-            .clipShape(RoundedRectangle(cornerRadius: compact ? 9 : 20, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: compact ? AskView.Compact.cardRadius : 20, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: compact ? 9 : 20, style: .continuous)
+                RoundedRectangle(cornerRadius: compact ? AskView.Compact.cardRadius : 20, style: .continuous)
                     .strokeBorder(.white.opacity(selected ? 0.35 : 0.12), lineWidth: 1)
             }
-            .contentShape(RoundedRectangle(cornerRadius: compact ? 9 : 20, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: compact ? AskView.Compact.cardRadius : 20, style: .continuous))
         }
         .buttonStyle(PressScale(scale: 0.98))
         .disabled(hit.action == nil)
     }
 
-    /// Smaller for both when either time is long ("12:02 AM"), never shrinking just one.
-    private var clockSize: CGFloat {
-        let long = hit.clocks.contains { $0.time.count > 7 }
-        return compact ? (long ? 17 : 19) : (long ? 25 : 28)
+    private var sizes: [CGFloat] { compact ? [19, 17, 15] : [28, 25, 22, 19] }
+
+    /// Top-aligned columns: labels, times and days each share a line; the gap sits between, above the arrow.
+    private func clocksRow(_ size: CGFloat) -> some View {
+        HStack(alignment: .top, spacing: compact ? 10 : 14) {
+            ForEach(Array(hit.clocks.enumerated()), id: \.offset) { i, c in
+                if i > 0 {
+                    VStack(spacing: 1) {
+                        if let gap = hit.gap {
+                            Text(gap).font(.sf(compact ? 9 : 11, .semibold)).monospacedDigit().opacity(0.8)
+                        }
+                        Image(systemName: "arrow.right").font(.sf(compact ? 10 : 13, .semibold)).opacity(0.5)
+                    }
+                    .fixedSize()
+                    .padding(.top, hit.gap == nil ? (compact ? 16 : 24) : (compact ? 8 : 14))
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(c.place.uppercased()).font(.sf(compact ? 9 : 11, .semibold)).tracking(0.6).opacity(0.7).lineLimit(1)
+                    Text(c.time).font(.sf(size, .light)).monospacedDigit().lineLimit(1).fixedSize()
+                    if !compact { Text(c.day).font(.sf(12, .medium)).opacity(0.7).lineLimit(1) }
+                }
+            }
+        }
     }
 
     @ViewBuilder private var background: some View {
@@ -274,9 +320,10 @@ struct HitRow: View {
 struct SearchSheet: View {
     @Bindable var people: People
     let model: Scrubber
+    /// The question, owned by whoever opened Ask, so it can start with one (the clock-change heads-up asks its own).
+    @Binding var query: String
     /// Opens someone's page.
     let open: (UUID) -> Void
-    @State private var query = ""
     @State private var places = PlaceLookup()
     @Environment(\.dismiss) private var dismiss
 

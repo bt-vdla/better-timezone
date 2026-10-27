@@ -19,11 +19,13 @@
 		5E73686C0862473F6D06557A /* Scrubber.swift in Sources */ = {isa = PBXBuildFile; fileRef = D29562640800AF3AEF507AA0 /* Scrubber.swift */; };
 		64F99FDDFDD32B2892049C85 /* People.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DD0311538D16C2950248E2 /* People.swift */; };
 		67F9A043D98F205CA87C74B8 /* PersonPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD2C742802CE6055413F352 /* PersonPage.swift */; };
+		79DA7FF0EBFA7A60991CED0B /* AbbreviationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17B2A79BC7A599D169CAE579 /* AbbreviationTests.swift */; };
 		7BC68B046F8F94D6F0BA51D5 /* airports.csv in Resources */ = {isa = PBXBuildFile; fileRef = 814677788BBC53D08024437E /* airports.csv */; };
 		7E685F8A75441B891C6AAD46 /* SharedIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECDCA57ADE21212596C4E48 /* SharedIntents.swift */; };
 		83C6CAD3F3C8C0F6A921D36E /* Notch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905E5552CEB98ECDD990705D /* Notch.swift */; };
 		8450FEC83605BDB01AE3D1A0 /* Tags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8263C47AF85C316D185C69 /* Tags.swift */; };
 		8AA3899D2173BE0A61C27ACF /* TagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE1B5104745C19131380477 /* TagViews.swift */; };
+		8B2A04ECFD1B6D3B0D2ACBDA /* Typos.swift in Sources */ = {isa = PBXBuildFile; fileRef = B818A4163955BF5D52FDABDC /* Typos.swift */; };
 		91428FAA08056101A078EC3B /* AskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC9F6C2BB65675DBB943143 /* AskView.swift */; };
 		9CF89FD55DCD3877E22EB72A /* PeopleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D8D9F1BCECEE2EF2FD8EE2 /* PeopleViews.swift */; };
 		A27AD70BB7E2C83EC747CDE3 /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4010E04CB8567AA0E800D21E /* Intents.swift */; };
@@ -35,6 +37,7 @@
 		BC2436F13894435E459D21A1 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CCD592752A86F92C3F30E8 /* Model.swift */; };
 		C1E76C99E8F61B4CA646A3A3 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CCD592752A86F92C3F30E8 /* Model.swift */; };
 		C91D4EE1B328F0662682DAC3 /* Tags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8263C47AF85C316D185C69 /* Tags.swift */; };
+		D168CA240DEF1126C28C4A51 /* Clocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515C676F21067A636E88CD87 /* Clocks.swift */; };
 		DBC88C2693FE158904B1EE8B /* Airports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */; };
 		DC3CBBB5561294ADAF1D7639 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1717EDF7CC0B3347D6852AB6 /* Assets.xcassets */; };
 		EA42229AF8CA08E514565C68 /* Connect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C2C3D539A055F95B3FDD67 /* Connect.swift */; };
@@ -82,6 +85,7 @@
 		121E59F83ED10F9C185D8F83 /* SkiesWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SkiesWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		153C2A3ACB41F09F0F2725B3 /* SkiesWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SkiesWidgets.entitlements; sourceTree = "<group>"; };
 		1717EDF7CC0B3347D6852AB6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		17B2A79BC7A599D169CAE579 /* AbbreviationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbbreviationTests.swift; sourceTree = "<group>"; };
 		1B8263C47AF85C316D185C69 /* Tags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tags.swift; sourceTree = "<group>"; };
 		2130ECA90442D24FF9844ECA /* Skies.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Skies.entitlements; sourceTree = "<group>"; };
 		25801DA363D61723BF70C5C8 /* Sky.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Sky.metal; sourceTree = "<group>"; };
@@ -90,6 +94,7 @@
 		3D6F2E34E89098D01F37622D /* countries.csv */ = {isa = PBXFileReference; path = countries.csv; sourceTree = "<group>"; };
 		4010E04CB8567AA0E800D21E /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
 		498A51D3E0D5FEC9EFEDB2D5 /* SkiesWidgets-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "SkiesWidgets-macOS.entitlements"; sourceTree = "<group>"; };
+		515C676F21067A636E88CD87 /* Clocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clocks.swift; sourceTree = "<group>"; };
 		52CCD592752A86F92C3F30E8 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		5A563B8735224F0390D5C92A /* Skies.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Skies.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5FD2C742802CE6055413F352 /* PersonPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonPage.swift; sourceTree = "<group>"; };
@@ -104,6 +109,7 @@
 		90BFB6578061984319CE8089 /* SkiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiesView.swift; sourceTree = "<group>"; };
 		A02152E27B4A61FA235A856E /* SkyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyTests.swift; sourceTree = "<group>"; };
 		A8D6F38F01A6FCE41E4AF2BE /* Search.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Search.swift; sourceTree = "<group>"; };
+		B818A4163955BF5D52FDABDC /* Typos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typos.swift; sourceTree = "<group>"; };
 		B923DE91AC700FA3980B1DA6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CECDCA57ADE21212596C4E48 /* SharedIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedIntents.swift; sourceTree = "<group>"; };
 		D29562640800AF3AEF507AA0 /* Scrubber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scrubber.swift; sourceTree = "<group>"; };
@@ -119,6 +125,7 @@
 		33E141FFA44995B26881A776 /* SkiesTests */ = {
 			isa = PBXGroup;
 			children = (
+				17B2A79BC7A599D169CAE579 /* AbbreviationTests.swift */,
 				A02152E27B4A61FA235A856E /* SkyTests.swift */,
 			);
 			path = SkiesTests;
@@ -141,6 +148,7 @@
 				8A6BC5AD4014FE9F19ABC6AE /* Airports.swift */,
 				3CC9F6C2BB65675DBB943143 /* AskView.swift */,
 				1717EDF7CC0B3347D6852AB6 /* Assets.xcassets */,
+				515C676F21067A636E88CD87 /* Clocks.swift */,
 				01C2C3D539A055F95B3FDD67 /* Connect.swift */,
 				3D6F2E34E89098D01F37622D /* countries.csv */,
 				52CCD592752A86F92C3F30E8 /* Model.swift */,
@@ -163,6 +171,7 @@
 				EC6F410F694BB5D05F0E7216 /* SkyBackground.swift */,
 				1B8263C47AF85C316D185C69 /* Tags.swift */,
 				DAE1B5104745C19131380477 /* TagViews.swift */,
+				B818A4163955BF5D52FDABDC /* Typos.swift */,
 			);
 			path = Skies;
 			sourceTree = "<group>";
@@ -337,6 +346,7 @@
 			files = (
 				DBC88C2693FE158904B1EE8B /* Airports.swift in Sources */,
 				91428FAA08056101A078EC3B /* AskView.swift in Sources */,
+				D168CA240DEF1126C28C4A51 /* Clocks.swift in Sources */,
 				EA42229AF8CA08E514565C68 /* Connect.swift in Sources */,
 				BC2436F13894435E459D21A1 /* Model.swift in Sources */,
 				F6EB8F75408876A5B70C0AE3 /* Moments.swift in Sources */,
@@ -356,6 +366,7 @@
 				252D981C9F5C1BCADACA27EA /* SkyBackground.swift in Sources */,
 				8AA3899D2173BE0A61C27ACF /* TagViews.swift in Sources */,
 				C91D4EE1B328F0662682DAC3 /* Tags.swift in Sources */,
+				8B2A04ECFD1B6D3B0D2ACBDA /* Typos.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -363,6 +374,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				79DA7FF0EBFA7A60991CED0B /* AbbreviationTests.swift in Sources */,
 				EAAD1F318C1988BD6C6E1441 /* SkyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

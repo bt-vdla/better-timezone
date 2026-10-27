@@ -96,6 +96,8 @@ struct SkiesView: View {
     let people: People
     @State private var model = Scrubber()
     @State private var sheet: Sheet?
+    /// What Ask opens with, when something asked for it (the clock-change heads-up).
+    @State private var askFirst = ""
     @State private var width = 390.0
     @State private var holidays = Holidays()
     @AppStorage("coached") private var coached = false
@@ -146,7 +148,7 @@ struct SkiesView: View {
             case .person(let id): PersonPage(people: people, model: model, holidays: holidays, id: id)
             case .planner: PlannerSheet(people: people, model: model)
             case .search:
-                SearchSheet(people: people, model: model) { id in
+                SearchSheet(people: people, model: model, query: $askFirst) { id in
                     // Let the search sheet close before the person's page opens in its place.
                     Task { try? await Task.sleep(for: .milliseconds(350)); sheet = .person(id) }
                 }
@@ -252,6 +254,18 @@ struct SkiesView: View {
                 Text(Date(timeIntervalSince1970: m * 60)
                     .formatted(Date.FormatStyle(timeZone: home.tz).weekday(.wide).day().month(.wide)))
                     .sf(15, .medium).opacity(0.8)
+                // A clock change in the next fortnight that moves someone's gap to you: tap to see what it does.
+                if let heads = Clocks.headsUp(people.list, now: nowMinutes()) {
+                    Button {
+                        askFirst = heads.ask
+                        sheet = .search
+                    } label: {
+                        Label(heads.text, systemImage: "clock.arrow.2.circlepath").labelStyle(TightLabel())
+                            .sf(13, .semibold).foregroundStyle(Color.sun).lineLimit(2).multilineTextAlignment(.leading)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Shows how it changes the time between you")
+                }
             }
             .skyLegible()
             Spacer()
@@ -267,7 +281,7 @@ struct SkiesView: View {
                             .glassEffectID("now", in: glass)
                             .buttonStyle(.plain)
                     }
-                    Button { sheet = .search } label: {
+                    Button { askFirst = ""; sheet = .search } label: {
                         Image(systemName: "magnifyingglass").font(.sf(15, .semibold)).frame(width: 40, height: 40)
                     }
                     .buttonStyle(.plain)
@@ -515,9 +529,11 @@ struct SkyRow: View {
                 }
                 // One quiet line: who they are, then what they're doing. No pills, so the sky does the talking.
                 // When a photo and a long city leave no room, the label goes first; the photo already says who.
+                // Drop the code first, then let a long holiday name trail off: the row never grows past the screen.
                 ViewThatFits(in: .horizontal) {
                     meta(label: label, dot: dot, compact: compact, withLabel: true)
                     meta(label: label, dot: dot, compact: compact, withLabel: false)
+                    meta(label: label, dot: dot, compact: compact, withLabel: false, squeeze: true)
                 }
                 .padding(.top, compact ? 0 : 4)
             }
@@ -539,7 +555,7 @@ struct SkyRow: View {
         .padding(.vertical, compact ? 6 : 12)
     }
 
-    private func meta(label: String, dot: RGB, compact: Bool, withLabel: Bool) -> some View {
+    private func meta(label: String, dot: RGB, compact: Bool, withLabel: Bool, squeeze: Bool = false) -> some View {
         HStack(spacing: 6) {
             // The secondary label (the airport code, or the name when codes lead), then what they're doing.
             if withLabel {
@@ -547,13 +563,16 @@ struct SkyRow: View {
                 Text("·").opacity(0.6)
             }
             Circle().fill(Color(dot)).frame(width: 6, height: 6)
-            Text(label)
+            Text(label).fixedSize()
             if let occasion {
                 Text("·").opacity(0.6)
                 Label(occasion.text, systemImage: occasion.icon).labelStyle(TightLabel()).foregroundStyle(Color.sun)
+                    .truncationMode(.tail)
+                    .fixedSize(horizontal: !squeeze, vertical: false)
             }
         }
-        .sf(compact ? 12 : 14, .medium).opacity(0.9).lineLimit(1).fixedSize()
+        .sf(compact ? 12 : 14, .medium).opacity(0.9).lineLimit(1)
+        .fixedSize(horizontal: !squeeze, vertical: false)
     }
 
     private var relative: String {

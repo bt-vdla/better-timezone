@@ -248,7 +248,162 @@ struct SkyTests {
         #expect(span("london in half an hour")?.zone?.tz.identifier == "Europe/London")   // Partners' clock
         #expect(span("london in half an hour")?.minutes == now + 30)
         #expect(span("2h ago")?.minutes == now - 120)
+        // The answer says how far from now, which is what the question was about.
+        let head = { (q: String) in Ask.hits(q, people: team, now: now).first?.headline }
+        #expect(head("ist 5 hours from now") == "In 5h")
+        #expect(head("tokyo in 90 mins") == "In 1h 30m")
+        #expect(head("2h ago") == "2h ago")
+        #expect(head("8pm") == "In 2h 30m")   // 5:30 PM in Hyderabad now
         #expect(Ask.placeWords("Visakhapatnam 3pm") == "visakhapatnam")
+    }
+
+    /// "7am guyana time to india time" and friends: a time on one clock, read on another.
+    @Test func conversions() {
+        let now = mondayNoonUTC   // Mon: 8:00 Guyana, 13:00 London (BST), 8:00 New York (EDT), 5:00 SF, 17:30 India
+        struct C: Equatable { let fromTZ: String, fromH: Int, toTZ: String, toH: Int, toM: Int, toWD: Int }
+        func c(_ q: String) -> C? {
+            guard let j = JumpParser.parse(q, people: team, now: now), let f = j.zone, let t = j.to else { return nil }
+            let a = Local(f.tz, j.minutes), b = Local(t.tz, j.minutes)
+            return C(fromTZ: f.tz.identifier, fromH: a.h, toTZ: t.tz.identifier, toH: b.h, toM: b.m, toWD: b.wd)
+        }
+        let guyanaToIndia = C(fromTZ: "America/Guyana", fromH: 7, toTZ: "Asia/Kolkata", toH: 16, toM: 30, toWD: 2)
+        #expect(c("7am guyana time to india time") == guyanaToIndia)   // 7am already gone in Guyana: tomorrow
+        #expect(c("7am Guyana time to India time?") == guyanaToIndia)
+        #expect(c("7 am guyana to india") == guyanaToIndia)
+        #expect(c("7 a.m. guyana → india") == guyanaToIndia)
+        #expect(c("guyana 7am to india") == guyanaToIndia)
+        #expect(c("india time for 7am guyana") == guyanaToIndia)
+        #expect(c("what time in india when it's 7am in guyana") == guyanaToIndia)
+        #expect(c("7am guyana in ist") == guyanaToIndia)
+        #expect(c("3pm london to tokyo") == C(fromTZ: "Europe/London", fromH: 15, toTZ: "Asia/Tokyo", toH: 23, toM: 0, toWD: 1))
+        #expect(c("convert 3pm est to ist") == C(fromTZ: "America/New_York", fromH: 15, toTZ: "Asia/Kolkata", toH: 0, toM: 30, toWD: 2))
+        #expect(c("9am my time in dubai") == C(fromTZ: "Asia/Kolkata", fromH: 9, toTZ: "Asia/Dubai", toH: 7, toM: 30, toWD: 2))
+        #expect(c("3pm to tokyo") == C(fromTZ: "Asia/Kolkata", fromH: 15, toTZ: "Asia/Tokyo", toH: 18, toM: 30, toWD: 2))
+        #expect(c("design review 9am to partners") == C(fromTZ: "America/Los_Angeles", fromH: 9, toTZ: "Europe/London", toH: 17, toM: 0, toWD: 1))
+        #expect(c("fri 10am sydney to london")?.toTZ == "Europe/London")
+        #expect(c("fri 10am sydney to london")?.fromH == 10)
+        // Still one clock: "3pm in tokyo" is Tokyo's 3pm, and plain times are yours.
+        #expect(JumpParser.parse("3pm in tokyo", people: team, now: now)?.to == nil)
+        #expect(JumpParser.parse("3pm in tokyo", people: team, now: now)?.zone?.tz.identifier == "Asia/Tokyo")
+        #expect(JumpParser.parse("8pm", people: team, now: now)?.zone == nil)
+        // The answer says both.
+        #expect(Ask.hits("7am guyana time to india time", people: team, now: now).first?.title == "7:00 AM in Guyana is 4:30 PM in India")
+        #expect(Ask.hits("what time is it in india when it's 9am in new york", people: team, now: now).first?.title == "9:00 AM in New York is 6:30 PM in India")
+        #expect(Ask.hits("3pm london to tokyo", people: team, now: now).first?.title == "3:00 PM in London is 11:00 PM in Tokyo")
+        #expect(Ask.hits("9am my time in dubai", people: team, now: now).first?.title.hasPrefix("Your 9:00 AM is") == true)
+    }
+
+    /// Airport codes: anywhere in the world, as a clock to read or convert to.
+    @Test func airportCodes() {
+        let now = mondayNoonUTC
+        let p = { (q: String) in JumpParser.parse(q, people: team, now: now) }
+        // 7am JFK has gone (8:00 there), so Tuesday 7:00 EDT = 16:30 in Mumbai.
+        let j = p("7am jfk to bom")
+        #expect(j?.zone?.tz.identifier == "America/New_York" && j?.to?.tz.identifier == "Asia/Kolkata")
+        #expect(j.map { Local(TimeZone(identifier: "Asia/Kolkata")!, $0.minutes) }.map { ($0.h, $0.m) } ?? (0, 0) == (16, 30))
+        #expect(p("3pm LHR to NRT")?.to?.tz.identifier == "Asia/Tokyo")
+        #expect(p("9am syd")?.zone?.tz.identifier == "Australia/Sydney")
+        #expect(p("noon elp")?.zone?.tz.identifier == "America/Denver")      // El Paso: Mountain, unlike the rest of Texas
+        #expect(p("noon bna")?.zone?.tz.identifier == "America/Chicago")     // Nashville: Central
+        #expect(p("noon dps")?.zone?.tz.identifier == "Asia/Makassar")       // Bali
+        #expect(p("noon pek")?.zone?.tz.identifier == "Asia/Shanghai")
+        #expect(Ask.hits("syd", people: team, now: now).first?.title.hasSuffix("in Sydney (SYD)") == true)
+        // Everyday words stay words, unless typed in capitals.
+        #expect(p("the 3pm")?.zone == nil)
+        #expect(p("sea 9am")?.zone == nil)
+        #expect(p("SEA 9am")?.zone?.tz.identifier == "America/Los_Angeles")
+        // Codes Skies can't be sure of offline come from Apple Maps, then work the same way.
+        #expect(p("kzn 3pm")?.zone == nil)
+        let kazan = Zone(name: "KZN", tz: TimeZone(identifier: "Europe/Moscow")!)
+        #expect(JumpParser.parse("kzn 3pm to dubai", people: team, now: now, extra: [kazan])?.zone?.name == "KZN")
+        let labelled = Zone(name: "Kazan (KZN)", tz: TimeZone(identifier: "Europe/Moscow")!, key: "kzn")
+        #expect(JumpParser.parse("kzn 3pm to dubai", people: team, now: now, extra: [labelled])?.zone?.name == "Kazan (KZN)")
+    }
+
+    /// Typos: read as what was meant, but only when that makes sense of the question.
+    @Test func typos() {
+        let now = mondayNoonUTC
+        let read = { (q: String) in Ask.readAs(q, people: team, now: now) }
+        let top = { (q: String) in Ask.hits(q, people: team, now: now).first?.title ?? "" }
+        #expect(read("7am est toi ist") == "7am est to ist")
+        #expect(top("7am est toi ist") == top("7am est to ist"))
+        #expect(read("7am guyna time to inda time") == "7am guyana time to india time")
+        #expect(top("7am guyna to inda") == "7:00 AM in Guyana is 4:30 PM in India")
+        #expect(read("3pm londn to tokio") == "3pm london to tokyo")
+        #expect(read("new yrok 9am")?.hasPrefix("new york") == true)
+        #expect(read("newyork 9am") == "new york 9am")
+        #expect(read("whn can i tlk to partners") == "when can i talk to partners")
+        #expect(top("is investr awake").hasPrefix("Yes"))
+        #expect(read("9am dubia") == "9am dubai")
+        // Already right: left alone.
+        #expect(read("7am est to ist") == nil)
+        #expect(read("sin 3pm") == nil)          // Singapore's code, not "in"
+        #expect(read("is partners awake") == nil)
+        #expect(read("time in tokyo") == nil)
+        // The keyboard shapes the guess: o and i are neighbours, so "toi" is a slip of "to", not a word.
+        #expect(Typos.distance("tine", "time") < Typos.distance("tixe", "time"))
+        #expect(Typos.distance("tokoy", "tokyo") == 0.5)
+        // Time-zone abbreviations are words Skies knows, not typos; short words never become airport codes.
+        #expect(read("1pm gyt to ist") == nil)
+        #expect(top("1pm gyt to ist") == "1:00 PM in Guyana Time is 10:30 PM in India")
+        #expect(top("9am npt to aest").hasPrefix("9:00 AM in Nepal Time"))
+        #expect(top("9am wit to wib").contains("Eastern Indonesia") || top("9am wit to wib").contains("Jayapura"))
+        // Two slips on a three-letter word is a guess too far: left as typed.
+        #expect(read("1pm gyx to ist") == nil)
+        #expect(read("9am xyt") == nil)
+        #expect(read("9am qyt") == nil)
+    }
+
+    /// Clock changes, as cues on answers and as questions. Europe went back on Sun 25 Oct 2026, the US on Sun 1 Nov.
+    @Test func daylightSaving() {
+        let now = mondayNoonUTC                // Mon 19 Oct, before either change
+        let weekLater = now + 7 * 1440         // Mon 26 Oct, the day after Europe's
+        let first = { (q: String, at: Double) in Ask.hits(q, people: team, now: at).first }
+        // A change between now and then: the gap then isn't today's.
+        let sunday = first("sun 9am london to india", now)
+        #expect(sunday?.gap == "+5h 30m")
+        #expect(sunday?.cue == "London's clocks go back 1h Sun, 25 Oct: 5h 30m apart then, 4h 30m now")
+        // A change in the past week: today's gap is new.
+        #expect(first("3pm london to india", weekLater)?.cue == "London's clocks went back 1h yesterday: 5h 30m apart now, was 4h 30m")
+        // A change in the fortnight after: worth knowing before it becomes a habit.
+        #expect(first("fri 9am new york to london", now)?.cue == "From Sun, 25 Oct, 4h apart: London's clocks go back 1h")
+        // Nothing changing: no cue. Summer time is tagged on its clock.
+        #expect(first("3pm tokyo to india", now)?.cue == nil)
+        #expect(first("3pm london to tokyo", now)?.clocks.first?.day.hasSuffix("summer time") == true)
+        #expect(first("9am new york to tokyo", now)?.clocks.first?.day.hasSuffix("daylight time") == true)
+        // Asked directly.
+        #expect(first("when do clocks change in london", now)?.title == "London's clocks go back 1h Sun, 25 Oct")
+        #expect(first("does india have dst", now)?.title == "India doesn't change its clocks")
+        #expect(first("does india have dst", now)?.detail.hasPrefix("Always UTC+5:30") == true)
+        #expect(first("is new york on daylight time", now)?.title == "Yes: New York is on daylight time (UTC−4)")
+        #expect(first("is tokyo on summer time?", now)?.title == "No: Tokyo doesn't change its clocks")
+        #expect(first("dst sydney", now)?.title.hasPrefix("Sydney's clocks go back 1h") == true)
+        #expect(Ask.readAs("when do clocks chnage in london", people: team, now: now) == "when do clocks change in london")
+
+        // After a change: the gap then against now (home here is Hyderabad, which never changes).
+        #expect(first("after dst ends, what's my time vs london", now)?.title == "After Sun, 25 Oct, London is 5h 30m behind you")
+        #expect(first("after dst ends, what's my time vs london", now)?.gap == "−5h 30m")
+        #expect(first("when dst ends, gap to new york", now)?.title == "After Sun, 1 Nov, New York is 10h 30m behind you")
+        #expect(first("once summer time starts in london, gap to me", now)?.title == "After Sun, 28 Mar, London is 4h 30m behind you")
+        #expect(first("after dst what will my time be in relation to ist", now)?.title == "No clock change ahead for you or India")
+        #expect(first("after dst, my time vs dubai", now)?.title == "No clock change ahead for you or Dubai")
+        // With a time: read on the first day after the change.
+        let later = first("after the clocks go back, 9am new york in india", now)
+        #expect(later?.title == "9:00 AM in New York is 7:30 PM in India")
+        #expect(later?.cue == "New York's clocks go back 1h Sun, 1 Nov")
+        // Typos too.
+        #expect(first("aftr dst ends whats my time vs london", now)?.title == "After Sun, 25 Oct, London is 5h 30m behind you")
+
+        // The heads-up: the nearest change in the next fortnight (or the last two days) that moves someone's gap,
+        // and a question Ask can answer about it.
+        let ahead = Clocks.headsUp(team, now: now)
+        #expect(ahead?.text == "Partners' clocks go back in 6 days")
+        #expect(ahead?.short == "Clocks go back in 6d")
+        #expect(first(ahead!.ask, now)?.title == "After Sun, 25 Oct, Partners is 5h 30m behind you")
+        let behind = Clocks.headsUp(team, now: weekLater)
+        #expect(behind?.text == "Partners' clocks went back yesterday")
+        #expect(first(behind!.ask, weekLater)?.cue?.hasPrefix("Partners' clocks went back 1h yesterday") == true)
+        #expect(Clocks.headsUp(team, now: now + 60 * 1440) == nil)   // mid-December: nothing for weeks
     }
 
     @Test func questions() {

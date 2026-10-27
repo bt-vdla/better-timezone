@@ -1,4 +1,5 @@
 import SwiftUI
+import Synchronization
 
 // MARK: - Places anywhere
 
@@ -7,6 +8,8 @@ struct Zone: Equatable {
     let name: String
     let tz: TimeZone
     var person: Person? = nil
+    /// What it's typed as, when that isn't its name ("kzn" for "Kazan (KZN)").
+    var key: String? = nil
 }
 
 /// Countries (bundled table), every time zone's city, common cities and abbreviations. Offline and instant;
@@ -35,6 +38,15 @@ enum Places {
             }
         }
         for (keys, name, id) in aliases { for k in keys { add(k, name, id) } }
+        // Time-zone abbreviations: the system's, then the ones it lacks ("GYT"), named in full ("Guyana Time").
+        for (abbr, id) in TimeZone.abbreviationDictionary.merging(extraAbbreviations, uniquingKeysWith: { _, extra in extra }) {
+            let name = TimeZone(identifier: id)?.localizedName(for: .generic, locale: en) ?? abbr
+            add(abbr, name, id)
+        }
+        // Airport codes ("sfo 3pm", "7am bom to lhr"), after every name so "Paris" stays Paris; shown with their city.
+        for (code, a) in Airports.byCode where !Airports.words.contains(code.lowercased()) {
+            if let tz = a.tz, t[code.lowercased()] == nil { t[code.lowercased()] = Zone(name: a.label, tz: tz, key: code.lowercased()) }
+        }
         return t
     }()
 
@@ -74,15 +86,61 @@ enum Places {
         (["gst"], "Gulf", "Asia/Dubai"),
     ]
 
+    /// The table, for the corrector's vocabulary.
+    static var spacedTable: [String: Zone] { table }
+
+    /// Abbreviations people use that the system doesn't list (or lists wrongly: WIT is eastern Indonesia).
+    private static let extraAbbreviations: [String: String] = [
+        "GYT": "America/Guyana", "VET": "America/Caracas", "BOT": "America/La_Paz", "ECT": "America/Guayaquil",
+        "UYT": "America/Montevideo", "PYT": "America/Asuncion", "SRT": "America/Paramaribo", "GFT": "America/Cayenne",
+        "AWST": "Australia/Perth", "ACST": "Australia/Adelaide", "ACDT": "Australia/Adelaide", "AEST": "Australia/Sydney",
+        "AEDT": "Australia/Sydney", "NPT": "Asia/Kathmandu", "MYT": "Asia/Kuala_Lumpur", "WIB": "Asia/Jakarta",
+        "WITA": "Asia/Makassar", "WIT": "Asia/Jayapura", "SAST": "Africa/Johannesburg", "AFT": "Asia/Kabul",
+        "AZT": "Asia/Baku", "UZT": "Asia/Tashkent", "ALMT": "Asia/Almaty", "BTT": "Asia/Thimphu", "MMT": "Asia/Yangon",
+        "KGT": "Asia/Bishkek", "TJT": "Asia/Dushanbe", "TMT": "Asia/Ashgabat", "YEKT": "Asia/Yekaterinburg",
+        "NOVT": "Asia/Novosibirsk", "KRAT": "Asia/Krasnoyarsk", "IRKT": "Asia/Irkutsk", "YAKT": "Asia/Yakutsk",
+        "VLAT": "Asia/Vladivostok", "MAGT": "Asia/Magadan", "PETT": "Asia/Kamchatka", "SAMT": "Europe/Samara",
+        "FJT": "Pacific/Fiji", "CHST": "Pacific/Guam", "SST": "Pacific/Pago_Pago", "TOT": "Pacific/Tongatapu",
+        "MVT": "Indian/Maldives", "MUT": "Indian/Mauritius", "SCT": "Indian/Mahe", "CHAST": "Pacific/Chatham",
+        "BDT": "Asia/Dhaka", "IST": "Asia/Kolkata", "GST": "Asia/Dubai",
+        // Short forms people type, and the rest of the world's usual ones.
+        "CT": "America/Chicago", "MT": "America/Denver", "AKT": "America/Anchorage", "HAST": "Pacific/Honolulu",
+        "BJT": "Asia/Shanghai", "ULAT": "Asia/Ulaanbaatar", "TLT": "Asia/Dili", "BNT": "Asia/Brunei", "OMST": "Asia/Omsk",
+        "IDT": "Asia/Jerusalem", "LHST": "Australia/Lord_Howe", "NZT": "Pacific/Auckland", "TAHT": "Pacific/Tahiti",
+        "MART": "Pacific/Marquesas", "GAMT": "Pacific/Gambier", "NCT": "Pacific/Noumea", "VUT": "Pacific/Efate",
+        "SBT": "Pacific/Guadalcanal", "PGT": "Pacific/Port_Moresby", "GILT": "Pacific/Tarawa", "PWT": "Pacific/Palau",
+        "CKT": "Pacific/Rarotonga", "TKT": "Pacific/Fakaofo", "WSST": "Pacific/Apia", "NFT": "Pacific/Norfolk",
+        "CXT": "Indian/Christmas", "CCT": "Indian/Cocos", "RET": "Indian/Reunion", "IOT": "Indian/Chagos",
+        "AZOT": "Atlantic/Azores", "CVT": "Atlantic/Cape_Verde", "FKST": "Atlantic/Stanley",
+    ]
+
     static func zone(named name: String) -> Zone? {
         table[name.lowercased().folding(options: .diacriticInsensitive, locale: nil)]
+    }
+
+    /// Every place named in a padded, folded query, with where it sits. Overlaps are sorted out by the caller.
+    static func all(in q: String) -> [(zone: Zone, key: String, range: Range<String.Index>)] {
+        let words = Set(q.split(separator: " ").map(String.init))
+        return words.flatMap { byFirstWord[$0] ?? [] }.flatMap { key, zone in
+            q.ranges(of: " \(key) ").map { (zone, key, inner($0, in: q)) }
+        }
+    }
+
+    /// Names by their first word ("new" → "new york", "new delhi"…), so a lookup only checks names that could be there.
+    private static let byFirstWord: [String: [(key: String, zone: Zone)]] = Dictionary(
+        grouping: table.map { (key: $0.key, zone: $0.value) },
+        by: { String($0.key.split(separator: " ").first ?? "") })
+
+    /// A " key " match without its padding spaces, so neighbouring words don't overlap.
+    static func inner(_ r: Range<String.Index>, in q: String) -> Range<String.Index> {
+        q.index(after: r.lowerBound)..<q.index(before: r.upperBound)
     }
 
     /// The longest place named in a padded query (" india 3pm "), and the words it used.
     static func find(in padded: String) -> (zone: Zone, key: String)? {
         let q = padded.folding(options: .diacriticInsensitive, locale: nil)
         var best: (Zone, String)?
-        for (key, zone) in table where key.count > (best?.1.count ?? 1) && q.contains(" \(key) ") { best = (zone, key) }
+        for (zone, key, _) in all(in: q) where key.count > (best?.1.count ?? 1) { best = (zone, key) }
         return best
     }
 }
@@ -95,6 +153,8 @@ struct Jump: Equatable {
     let minutes: Double
     /// Whose clock the time was read on, when one was named.
     let zone: Zone?
+    /// The clock to convert it to: "7am Guyana to India".
+    var to: Zone? = nil
     var person: Person? { zone?.person }
 }
 
@@ -122,13 +182,52 @@ enum JumpParser {
             return (p.zone, [p.name, p.city, p.code, p.contact?.name ?? ""].map { $0.lowercased() }.filter { !$0.isEmpty })
         }
         if let (z, key) = Places.find(in: padded) { return (z, [key]) }
-        if let z = extra.first(where: { padded.contains(" \($0.name.lowercased()) ") }) { return (z, [z.name.lowercased()]) }
+        if let z = extra.first(where: { padded.contains(" \($0.key ?? $0.name.lowercased()) ") }) { return (z, [z.key ?? z.name.lowercased()]) }
         return nil
     }
 
+    /// Words that mean your own clock, when a question converts between two.
+    private static let mine = ["my time", "your time", "local time", "my", "me", "mine", "here", "local"]
+
+    /// Every person, place and "my time" named in the question, longest first where they overlap, in reading order.
+    /// A person beats a place on the same words; matched by their city, the clock is labelled with the city.
+    static func zones(in q: String, people: [Person], extra: [Zone], home: Person) -> [(zone: Zone, range: Range<String.Index>)] {
+        func fold(_ s: String) -> String { s.lowercased().folding(options: .diacriticInsensitive, locale: nil) }
+        var found: [(zone: Zone, length: Int, rank: Int, range: Range<String.Index>)] = []
+        for p in people {
+            let keys = [(p.name, p.name), (p.city, p.city), (p.code, p.name), (p.contact?.name ?? "", p.name), (p.contact?.firstName ?? "", p.name)]
+            for (key, label) in keys where key.count >= 2 {
+                for r in q.ranges(of: " \(fold(key)) ") {
+                    found.append((Zone(name: label, tz: p.tz, person: p), key.count, 2, Places.inner(r, in: q)))
+                }
+            }
+        }
+        for key in mine { for r in q.ranges(of: " \(key) ") { found.append((home.zone, key.count, 1, Places.inner(r, in: q))) } }
+        for (zone, key, range) in Places.all(in: q) { found.append((zone, key.count, 0, range)) }
+        for z in extra {
+            let k = z.key ?? fold(z.name)
+            for r in q.ranges(of: " \(k) ") { found.append((z, k.count, 0, Places.inner(r, in: q))) }
+        }
+        var kept: [(zone: Zone, range: Range<String.Index>)] = []
+        for f in found.sorted(by: { ($0.length, $0.rank) > ($1.length, $1.rank) })
+        where !kept.contains(where: { $0.range.overlaps(f.range) }) {
+            kept.append((f.zone, f.range))
+        }
+        return kept.sorted { $0.range.lowerBound < $1.range.lowerBound }
+    }
+
     static func parse(_ query: String, people: [Person], now: Double, extra: [Zone] = []) -> Jump? {
-        var q = " " + query.lowercased().trimmingCharacters(in: .whitespaces.union(.punctuationCharacters)) + " "
+        var q = " " + query.lowercased().folding(options: .diacriticInsensitive, locale: nil) + " "
+        for (a, b) in [("→", " to "), ("->", " to "), ("=", " to "), ("a.m.", "am"), ("p.m.", "pm"), ("?", " "), (",", " "), ("!", " ")] {
+            q = q.replacingOccurrences(of: a, with: b)
+        }
+        q = " " + q.trimmingCharacters(in: .whitespaces.union(.punctuationCharacters)) + " "
         guard q.count > 2, let home = people.first(where: \.isHome) ?? people.first else { return nil }
+        // A code typed in capitals counts even when it's also a word ("SEA", "CAN").
+        let extra = extra + query.split(whereSeparator: { !$0.isLetter }).compactMap { w -> Zone? in
+            guard w.count == 3, w == w.uppercased(), let a = Airports.byCode[String(w)], let tz = a.tz else { return nil }
+            return Zone(name: a.label, tz: tz, key: w.lowercased())
+        }
 
         // "in 2h", "+90m", "india 3 hours from now", "kate in an hour", "2h ago": a span from now, anywhere in the
         // question; whatever's left names whose clock to show it on.
@@ -142,8 +241,33 @@ enum JumpParser {
             return Jump(minutes: now + (back ? -span : span), zone: who)
         }
 
-        let found = zone(in: q, people: people, extra: extra)
-        for key in found?.keys ?? [] { q = q.replacingOccurrences(of: " \(key) ", with: " ") }
+        // Whose clock, and which clock to convert to. With two named, the one beside the time is where the time is
+        // ("7am guyana to india", "india time for 7am guyana", "in india when it's 9am in new york").
+        q = q.replacing(/(\d)\s+(am|pm|a|p)\b/) { "\($0.1)\($0.2)" }
+        let named = zones(in: q, people: people, extra: extra, home: home)
+        let timeAt = q.firstMatch(of: /\s\d{1,2}(?::\d{2})?(?:am|pm|a|p)?\s/)?.range
+            ?? q.range(of: " noon ") ?? q.range(of: " midnight ")
+        var from: Zone?, to: Zone?
+        if named.count >= 2 {
+            var (a, b) = (named[0], named[1])
+            if let t = timeAt {
+                func gap(_ r: Range<String.Index>) -> Int {
+                    r.lowerBound >= t.upperBound ? q.distance(from: t.upperBound, to: r.lowerBound) : q.distance(from: r.upperBound, to: t.lowerBound)
+                }
+                if gap(b.range) < gap(a.range) { (a, b) = (b, a) }
+            }
+            (from, to) = (a.zone, b.zone)
+        } else if let only = named.first {
+            // "3pm to tokyo": your 3pm, in Tokyo. "3pm in tokyo" stays Tokyo's 3pm.
+            let before = q[..<only.range.lowerBound].trimmingCharacters(in: .whitespaces)
+            let converting = before.hasSuffix(" to") || before.hasSuffix(" into") || before == "to" || before == "into"
+            if converting, let t = timeAt, t.upperBound <= only.range.lowerBound, only.zone.person?.isHome != true {
+                (from, to) = (home.zone, only.zone)
+            } else {
+                from = only.zone
+            }
+        }
+        for n in named.reversed() { q.replaceSubrange(n.range, with: " ") }
 
         // Which day.
         var dayWord: Int?
@@ -156,7 +280,6 @@ enum JumpParser {
 
         // What time: "3pm", "3 pm", "15:30", "9", "noon", "midnight".
         var hour: Int?, minute = 0, suffix: String?
-        q = q.replacing(/(\d)\s+(am|pm|a|p)\b/) { "\($0.1)\($0.2)" }
         if q.contains(" noon ") { hour = 12; suffix = "pm" }
         if q.contains(" midnight ") { hour = 0; suffix = "am" }
         if hour == nil, let m = q.firstMatch(of: /\s(\d{1,2})(?::(\d{2}))?(am|pm|a|p)?\s/) {
@@ -167,7 +290,7 @@ enum JumpParser {
         guard hour != nil || dayWord != nil || weekday != nil else { return nil }
         guard (hour ?? 0) < 24, minute < 60 else { return nil }
 
-        let tz = found?.zone.tz ?? home.tz
+        let tz = from?.tz ?? home.tz
         let today = Local(tz, now)
         let offset = dayWord ?? weekday.map { ($0 - today.wd + 7) % 7 } ?? 0
         let dayNamed = dayWord != nil || weekday != nil
@@ -191,15 +314,15 @@ enum JumpParser {
         var m = start + Double(h * 60 + minute)
         // A time already gone today, with no day named, means tomorrow.
         if !dayNamed && m <= now - 1 { m = dayStart(tz, start + 1440 + 720) + Double(h * 60 + minute) }
-        return Jump(minutes: m, zone: found?.zone)
+        return Jump(minutes: m, zone: from, to: to.flatMap { $0.tz.identifier == tz.identifier && $0.name == from?.name ? nil : $0 })
     }
 }
 
 // MARK: - Answers
 
 /// One line of a search result: an answer, a time, a person or a tag, and what tapping it does.
-struct Hit: Identifiable {
-    enum Action { case jump(Double, pick: Set<UUID>), open(UUID), scope(String) }
+struct Hit: Identifiable, Sendable {
+    enum Action: Sendable { case jump(Double, pick: Set<UUID>), open(UUID), scope(String) }
     let id: String
     let icon: String
     let title: String
@@ -215,9 +338,13 @@ struct Hit: Identifiable {
     var headline: String? = nil
     /// The card's second line, only where the clocks don't already say it.
     var note: String? = nil
+    /// How far the second clock is from the first: "+9h 30m".
+    var gap: String? = nil
+    /// A clock change worth knowing about: "London's clocks went back 1h yesterday: 5h 30m apart now, was 4h 30m".
+    var cue: String? = nil
 }
 
-struct HitClock: Hashable {
+struct HitClock: Hashable, Sendable {
     let place: String
     let time: String
     let day: String
@@ -226,13 +353,61 @@ struct HitClock: Hashable {
 /// Plain questions about your people, answered from their clocks: "is amma awake", "when can I speak to family",
 /// "what time is it in tokyo". No model; patterns and the same maths as the rest of Skies.
 enum Ask {
+    /// The last answer: the notch asks every frame while it's open, but answers only change with the text or the minute.
+    private static let last = Mutex<(key: String, hits: [Hit], readAs: String?)?>(nil)
+
     static func hits(_ query: String, people: [Person], now: Double, extra: [Zone] = []) -> [Hit] {
+        resolve(query, people: people, now: now, extra: extra).hits
+    }
+
+    /// The question as Skies read it, when it corrected a typo ("7am est to ist" for "7am est toi ist").
+    static func readAs(_ query: String, people: [Person], now: Double, extra: [Zone] = []) -> String? {
+        resolve(query, people: people, now: now, extra: extra).readAs
+    }
+
+    private static func resolve(_ query: String, people: [Person], now: Double, extra: [Zone]) -> (hits: [Hit], readAs: String?) {
+        let key = "\(query)|\(Int(now))|\(extra.map(\.name))|" + people.map { "\($0.id)\($0.label)\($0.tagList)\($0.tzID)" }.joined()
+        if let hit = last.withLock({ $0?.key == key ? $0 : nil }) { return (hit.hits, hit.readAs) }
+        // Every likely reading goes through Ask itself; the one it understands best wins. Each word left unknown
+        // and each correction made cost a little, so the original wins whenever it already makes sense.
+        var best: (hits: [Hit], text: String, score: Double)?
+        for r in Typos.readings(query, people: people) {
+            // Cheapest first: once even a perfect answer couldn't beat the best so far, nothing later can.
+            if let b = best, 4 - 0.5 * r.cost <= b.score { break }
+            let hits = answer(r.text, people: people, now: now, extra: extra)
+            let score = understanding(hits) - 0.5 * r.cost - 0.6 * Double(r.unknown)
+            if best == nil || score > best!.score + 0.001 { best = (hits, r.text, score) }
+        }
+        let hits = best?.hits ?? [], text = best?.text ?? query
+        let readAs = text.lowercased() == query.lowercased().trimmingCharacters(in: .whitespaces) || hits.isEmpty ? nil : text
+        last.withLock { $0 = (key, hits, readAs) }
+        return (hits, readAs)
+    }
+
+    /// How well Ask understood a reading: an answer beats a time beats a list of names.
+    private static func understanding(_ hits: [Hit]) -> Double {
+        guard let top = hits.first else { return 0 }
+        if top.id == "convert" || top.id == "when" || top.id.hasPrefix("ask-") || top.id.hasPrefix("dst-") || top.id.hasPrefix("after-") { return 4 }
+        if top.id == "jump" || top.id.hasPrefix("time-") { return 3 }
+        return 1 + min(1, Double(hits.count) * 0.1)
+    }
+
+    private static func answer(_ query: String, people: [Person], now: Double, extra: [Zone]) -> [Hit] {
         let q = query.lowercased().replacingOccurrences(of: "’", with: "'")
             .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "?!.,")))
         guard !q.isEmpty, let home = people.first(where: \.isHome) ?? people.first else { return [] }
         var out: [Hit] = []
+        let jump = JumpParser.parse(q, people: people, now: now, extra: extra)
 
-        if let m = q.firstMatch(of: /^(?:is|are)\s+(.+?)\s+(awake|up|asleep|sleeping|free|available|around|busy|working|at work|online)$/),
+        // Clock-change questions ("when do clocks change in london", "does india have dst") first; then a conversion
+        // ("7am guyana to india", "time in india when it's 9am in new york").
+        if let a = afterChange(q, people: people, extra: extra, now: now, home: home) {
+            out.append(a)
+        } else if let d = daylight(q, people: people, extra: extra, now: now) {
+            out.append(d)
+        } else if let jump, jump.to != nil {
+            out.append(jumpHit(jump, home: home, now: now))
+        } else if let m = q.firstMatch(of: /^(?:is|are)\s+(.+?)\s+(awake|up|asleep|sleeping|free|available|around|busy|working|at work|online)$/),
            let who = target(String(m.1), people) {
             out += who.members.prefix(6).map { awake($0, home: home, now: now, asked: String(m.2)) }
         } else if let phrase = whenPhrase(q), let who = target(phrase, people) {
@@ -242,9 +417,9 @@ enum Ask {
             if let z = JumpParser.zone(in: padded, people: people, extra: extra)?.zone { out.append(timeIn(z, home: home, now: now)) }
         }
 
-        if let jump = JumpParser.parse(q, people: people, now: now, extra: extra) {
-            out.append(jumpHit(jump, home: home))
-        } else if out.isEmpty, let z = JumpParser.zone(in: " \(q) ", people: people, extra: extra)?.zone, z.person == nil {
+        if let jump, jump.to == nil {
+            out.append(jumpHit(jump, home: home, now: now))
+        } else if jump == nil, out.isEmpty, let z = JumpParser.zone(in: " \(q) ", people: people, extra: extra)?.zone, z.person == nil {
             // A bare place ("tokyo"): its time now.
             out.append(timeIn(z, home: home, now: now))
         }
@@ -256,7 +431,7 @@ enum Ask {
                            detail: "\(people.filter { $0.has(t.id) }.map(\.name).formatted())", action: .scope(t.id), color: t.rgb))
         }
         let named = Set(out.compactMap { $0.person?.id })
-        for p in people where !named.contains(p.id) {
+        for p in people where !named.contains(p.id) && !p.isHome {
             let fields = [p.name, p.city, p.code, p.contact?.name ?? ""].map { $0.lowercased() }
             guard fields.contains(where: { f in f.hasPrefix(q) || words.contains { f.hasPrefix($0) } }) else { continue }
             let l = Local(p.tz, now)
@@ -386,28 +561,185 @@ enum Ask {
         let rel = diff == 0 ? "Same time as you" : "\(dur(abs(diff))) \(diff < 0 ? "behind" : "ahead of") you"
         return Hit(id: "time-\(z.name)", icon: "globe", title: "\(clock(l)) \(ampm(l.h)) in \(z.name)",
                    detail: rel, action: nil, color: [133, 183, 235], clocks: pair(z.name, z.tz, home, now), at: now,
-                   headline: "Right now · \(rel.prefix(1).lowercased() + rel.dropFirst())")
+                   headline: "Right now · \(rel.prefix(1).lowercased() + rel.dropFirst())",
+                   gap: Clocks.signed(Clocks.gap(z.tz, home.tz, now)),
+                   cue: Clocks.cue((z.name, z.tz), ("your", home.tz), at: now, now: now))
     }
 
-    private static func jumpHit(_ j: Jump, home: Person) -> Hit {
+    private static func jumpHit(_ j: Jump, home: Person, now: Double) -> Hit {
         let mine = Local(home.tz, j.minutes)
-        let day = { (tz: TimeZone) in Date(timeIntervalSince1970: j.minutes * 60).formatted(Date.FormatStyle(timeZone: tz).weekday(.abbreviated).day()) }
+        // How far from now: "In 5h", "2h ago", "Now". It's what the question was really about.
+        let gap = (j.minutes - now).rounded()
+        let when = abs(gap) < 1 ? "Now" : gap > 0 ? "In \(dur(gap))" : "\(dur(-gap)) ago"
+        // "Tue 27", and "· summer time" when that clock is on it then.
+        let day = { (tz: TimeZone) in
+            Date(timeIntervalSince1970: j.minutes * 60).formatted(Date.FormatStyle(timeZone: tz).weekday(.abbreviated).day())
+                + (Clocks.season(tz, j.minutes).map { " · \($0)" } ?? "")
+        }
+        if let to = j.to, let from = j.zone {
+            let a = Local(from.tz, j.minutes), b = Local(to.tz, j.minutes)
+            let isYou = { (z: Zone) in z.person?.isHome == true && z.name == z.person?.name }
+            /// "your 7:00 AM", "Kate's 9:00 AM", "7:00 AM in Guyana".
+            func say(_ z: Zone, _ l: Local) -> String {
+                let t = "\(clock(l)) \(ampm(l.h))"
+                if isYou(z) { return "your \(t)" }
+                if let p = z.person, p.name == z.name { return "\(p.name)\(p.name.hasSuffix("s") ? "'" : "'s") \(t)" }
+                return "\(t) in \(z.name)"
+            }
+            let line = "\(say(from, a)) is \(say(to, b))"
+            let yoursToo = !isYou(from) && !isYou(to) && from.tz.identifier != home.tz.identifier && to.tz.identifier != home.tz.identifier
+            let people = Set([from.person, to.person].compactMap { $0 }.filter { !$0.isHome }.map(\.id))
+            return Hit(id: "convert", icon: "arrow.left.arrow.right",
+                       title: line.prefix(1).uppercased() + line.dropFirst(),
+                       detail: yoursToo ? "\(when) · your \(clock(mine)) \(ampm(mine.h)), \(day(home.tz))" : when,
+                       action: .jump(j.minutes, pick: people), color: [255, 214, 74], person: from.person ?? to.person,
+                       clocks: [HitClock(place: isYou(from) ? "You" : from.name, time: "\(clock(a)) \(ampm(a.h))", day: day(from.tz)),
+                                HitClock(place: isYou(to) ? "You" : to.name, time: "\(clock(b)) \(ampm(b.h))", day: day(to.tz))],
+                       at: j.minutes,
+                       headline: yoursToo ? "\(when) · your \(clock(mine)) \(ampm(mine.h)), \(day(home.tz))" : when,
+                       gap: Clocks.signed(Clocks.gap(from.tz, to.tz, j.minutes)),
+                       cue: Clocks.cue((isYou(from) ? "your" : from.name, from.tz), (isYou(to) ? "your" : to.name, to.tz), at: j.minutes, now: now))
+        }
         if let z = j.zone, z.person?.isHome != true {
             let theirs = Local(z.tz, j.minutes)
             let whose = z.person.map { "\($0.name)'s" } ?? z.name
             return Hit(id: "jump", icon: "clock.arrow.circlepath",
                        title: z.person != nil ? "\(whose) \(clock(theirs)) \(ampm(theirs.h)) is your \(clock(mine)) \(ampm(mine.h))"
                                               : "\(clock(theirs)) \(ampm(theirs.h)) in \(whose) is \(clock(mine)) \(ampm(mine.h)) yours",
-                       detail: "See everyone's sky then", action: .jump(j.minutes, pick: z.person.map { [$0.id] } ?? []),
+                       detail: when, action: .jump(j.minutes, pick: z.person.map { [$0.id] } ?? []),
                        color: [255, 214, 74], person: z.person,
                        clocks: [HitClock(place: z.person?.name ?? z.name, time: "\(clock(theirs)) \(ampm(theirs.h))", day: day(z.tz)),
                                 HitClock(place: "You", time: "\(clock(mine)) \(ampm(mine.h))", day: day(home.tz))],
-                       at: j.minutes, headline: "See everyone's sky then")
+                       at: j.minutes, headline: when,
+                       gap: Clocks.signed(Clocks.gap(z.tz, home.tz, j.minutes)),
+                       cue: Clocks.cue((z.person?.name ?? z.name, z.tz), ("your", home.tz), at: j.minutes, now: now))
         }
         return Hit(id: "jump", icon: "clock.arrow.circlepath", title: "\(clock(mine)) \(ampm(mine.h)) your time",
-                   detail: "See everyone's sky then", action: .jump(j.minutes, pick: []), color: [255, 214, 74],
+                   detail: when, action: .jump(j.minutes, pick: []), color: [255, 214, 74],
                    clocks: [HitClock(place: "You", time: "\(clock(mine)) \(ampm(mine.h))", day: day(home.tz))], at: j.minutes,
-                   headline: "See everyone's sky then")
+                   headline: when)
+    }
+
+    /// "After DST, what's my time vs IST", "when dst ends, gap to new york", "after the clocks go back, 9am new york in
+    /// india", "once summer time starts in london": the gap after the next change, or a time read after it.
+    private static func afterChange(_ q: String, people: [Person], extra: [Zone], now: Double, home: Person) -> Hit? {
+        let change = "(?:dst|daylight savings?(?: time)?|daylight time|summer time|winter time|standard time|the clocks?|clocks?|the time change|time change)"
+        let ends = "(?:ends?|stops?|is over|finishes|go(?:es)? back|fall back|falls back|change|changes)"
+        let starts = "(?:starts?|begins?|kicks in|go(?:es)? forward|spring forward|springs forward)"
+        let pattern = "\\b(?:after|once|when|post|from|following)\\s+(?:(?:(.+?)(?:'s|s')?\\s+)?\(change)(?:\\s+(\(ends)|\(starts)))?|\(change)\\s+(\(ends)|\(starts)))\\b"
+        // "When do clocks change…" asks when, not what happens after: that's `daylight`'s.
+        guard q.firstMatch(of: /^when\s+(?:do|does|did|will|is|are)\b/) == nil,
+              let r = try? Regex(pattern), let m = q.firstMatch(of: r) else { return nil }
+        let phrase = String(q[m.range]).lowercased()
+        let direction: Int? = phrase.firstMatch(of: try! Regex(starts)) != nil || phrase.contains("summer time start") ? 1
+            : phrase.firstMatch(of: try! Regex("(?:ends?|stops?|is over|finishes|back)")) != nil ? -1 : nil
+        // The rest names the clocks: "my time", "ist", "kate", "new york".
+        // Whose clocks, when the phrase named them ("after kate's clocks go back") stays in.
+        let owner = m.output[1].substring.map { " " + String($0) } ?? ""
+        var rest = " " + q.replacingCharacters(in: m.range, with: owner + " ").replacingOccurrences(of: ",", with: " ").replacingOccurrences(of: "?", with: " ") + " "
+        for filler in ["what will", "what's", "whats", "what is", "will be", "be", "in relation to", "relative to", "compared to",
+                       "compared with", "versus", "vs", "the gap", "gap", "difference", "between", "and", "with", "to", "how far",
+                       "ahead", "behind", "of", "the"] {
+            rest = rest.replacingOccurrences(of: " \(filler) ", with: " ")
+        }
+        let named = JumpParser.zones(in: " " + rest.trimmingCharacters(in: .whitespaces) + " ", people: people, extra: extra, home: home)
+        var clocks: [Zone] = []
+        for z in named.map(\.zone) + [home.zone] where !clocks.contains(where: { $0.tz.identifier == z.tz.identifier }) { clocks.append(z) }
+        // The change meant: the soonest, in the asked direction, on any clock in the question.
+        let next = clocks.compactMap { z in
+            Clocks.changes(z.tz, from: now, to: now + 400 * 1440).first { direction == nil || ($0.shift > 0) == (direction! > 0) }.map { (z, $0) }
+        }.min { $0.1.at < $1.1.at }
+        let isYou = { (z: Zone) in z.person?.isHome == true }
+        let label = { (z: Zone) in isYou(z) ? "You" : z.name }
+        guard let (who, c) = next else {
+            // Named even when it shares your clock (IST when you're in India).
+            var others: [String] = []
+            for z in named.map(\.zone) where !isYou(z) && !others.contains(z.name) { others.append(z.name) }
+            return Hit(id: "after-none", icon: "clock.badge.checkmark",
+                       title: others.isEmpty ? "Your clock doesn't change" : "No clock change ahead for you or \(ListFormatter.localizedString(byJoining: others))",
+                       detail: others.isEmpty ? "Always \(Clocks.utc(Clocks.offset(home.tz, now)))" : "The gap stays as it is", action: nil, color: [133, 183, 235])
+        }
+        let when = Clocks.day(c.at, who.tz, now: now)
+        let whose = isYou(who) ? "Your" : Clocks.owner(who.name)
+        let reason = "\(whose) clocks \(Clocks.move(c.shift)) \(when)"
+        // With a time, read it on the first day after the change.
+        if let j = JumpParser.parse(rest, people: people, now: c.at + 1, extra: extra), j.zone != nil || j.to != nil {
+            var hit = jumpHit(j, home: home, now: now)
+            hit.cue = reason
+            return hit
+        }
+        // Otherwise the gap after, against the gap now.
+        guard let other = clocks.first(where: { $0.tz.identifier != home.tz.identifier }) ?? (isYou(who) ? nil : who) else {
+            let off = Clocks.offset(home.tz, c.at + 1)
+            return Hit(id: "after-you", icon: "clock.arrow.2.circlepath", title: "\(reason.prefix(1).uppercased() + reason.dropFirst())",
+                       detail: "You'll be \(Clocks.utc(off)), from \(Clocks.utc(Clocks.offset(home.tz, now)))",
+                       action: .jump(c.at + 1, pick: []), color: [255, 214, 74],
+                       clocks: [HitClock(place: "You now", time: Clocks.utc(Clocks.offset(home.tz, now)), day: Clocks.season(home.tz, now) ?? "standard"),
+                                HitClock(place: "From \(when)", time: Clocks.utc(off), day: Clocks.season(home.tz, c.at + 1) ?? "standard")],
+                       at: c.at + 1, headline: reason, gap: Clocks.signed(c.shift))
+        }
+        // Against the gap just before that change: "once summer time starts" means compared with winter, not today.
+        let after = Clocks.gap(home.tz, other.tz, c.at + 1), before = Clocks.gap(home.tz, other.tz, c.at - 1)
+        let today = Clocks.gap(home.tz, other.tz, now)
+        let side = { (g: Int) in g == 0 ? "on your time" : "\(dur(Double(abs(g)))) \(g > 0 ? "ahead of" : "behind") you" }
+        let title = after == before ? "Still \(side(after)) after \(when)" : "After \(when), \(other.name) is \(side(after))"
+        let then = c.at + 1
+        return Hit(id: "after-\(other.name)", icon: "clock.arrow.2.circlepath", title: title,
+                   detail: "\(today == before ? "Now" : "Before then") \(side(before)). \(reason.prefix(1).uppercased() + reason.dropFirst())",
+                   action: .jump(then, pick: other.person.map { [$0.id] } ?? []), color: [255, 214, 74], person: other.person,
+                   clocks: [HitClock(place: "You", time: Clocks.utc(Clocks.offset(home.tz, then)), day: Clocks.season(home.tz, then) ?? "standard"),
+                            HitClock(place: label(other), time: Clocks.utc(Clocks.offset(other.tz, then)), day: Clocks.season(other.tz, then) ?? "standard")],
+                   at: then, headline: title, gap: Clocks.signed(after),
+                   cue: after == before ? reason : "\(reason): \(Clocks.apart(after)) then, \(dur(Double(abs(before)))) \(today == before ? "now" : "before")")
+    }
+
+    /// "When do clocks change in London", "does India have DST", "is New York on daylight time", "dst sydney".
+    private static func daylight(_ q: String, people: [Person], extra: [Zone], now: Double) -> Hit? {
+        let dst = "(?:dst|daylight savings?(?: time)?|daylight time|summer time|winter time|standard time|clock changes?|time changes?)"
+        let verbs = "(?:change(?: (?:its|their|the))? (?:clocks?|time)|go (?:back|forward)|spring forward|fall back|switch(?: to .+)?)"
+        let asking: [(String, Bool)] = [   // pattern, and whether it's a yes/no "is it on daylight time now"
+            ("^when (?:do|does|will|did) (?:the )?clocks? (?:change|go (?:back|forward)|spring forward|fall back)(?: in| for)? (.+)$", false),
+            ("^when (?:do|does|will|did) (.+?) \(verbs)$", false),
+            ("^(?:does|do|did) (.+?) (?:have|use|observe|do|has|change for) \(dst)$", false),
+            ("^is there \(dst) in (.+)$", false),
+            ("^(?:is|are) (.+?) (?:on|in|using) \(dst)(?: now| right now| yet)?$", true),
+            ("^(?:when is |next )?\(dst)(?: in| for)? (.+)$", false),
+            ("^(.+?) \(dst)$", false),
+        ]
+        for (pattern, yesNo) in asking {
+            guard let r = try? Regex(pattern), let m = q.firstMatch(of: r), let phrase = m.output[1].substring,
+                  let z = JumpParser.zone(in: " \(phrase) ", people: people, extra: extra)?.zone else { continue }
+            // Named by their city ("london" for Partners), the answer says the city.
+            let byCity = z.person.map { phrase.contains($0.city.lowercased()) } ?? false
+            let base = byCity ? z.person!.city : z.name
+            let name = z.person?.isHome == true && !byCity ? "Your clock" : base
+            let off = Clocks.offset(z.tz, now)
+            let next = Clocks.changes(z.tz, from: now, to: now + 400 * 1440).first
+            guard let next else {
+                let last = Clocks.last(z.tz, before: now)
+                return Hit(id: "dst-\(z.name)", icon: "clock.badge.checkmark",
+                           title: yesNo ? "No: \(name) doesn't change its clocks" : "\(name) doesn't change its clocks",
+                           detail: "Always \(Clocks.utc(off))" + (last.map { " since \(Date(timeIntervalSince1970: $0.at * 60).formatted(.dateTime.year()))" } ?? ""),
+                           action: nil, color: [133, 183, 235], person: z.person,
+                           clocks: [HitClock(place: name, time: Clocks.utc(off), day: "all year")], at: now)
+            }
+            let season = Clocks.season(z.tz, now)
+            let after = Clocks.offset(z.tz, next.at + 1)
+            let when = Clocks.day(next.at, z.tz, now: now)
+            let local = Local(z.tz, next.at - 1)
+            let title = yesNo
+                ? (season != nil ? "Yes: \(name) is on \(season!) (\(Clocks.utc(off)))" : "No: \(name) is on standard time (\(Clocks.utc(off)))")
+                : "\(Clocks.owner(name)) clocks \(Clocks.move(next.shift)) \(when)"
+            return Hit(id: "dst-\(z.name)", icon: "clock.arrow.2.circlepath", title: title,
+                       detail: "At \(clock(local)) \(ampm(local.h)) their time, \(Clocks.utc(off)) becomes \(Clocks.utc(after))",
+                       action: .jump(next.at, pick: z.person.map { $0.isHome ? [] : [$0.id] } ?? []), color: [255, 214, 74], person: z.person,
+                       clocks: [HitClock(place: "Now", time: Clocks.utc(off), day: season ?? "standard"),
+                                HitClock(place: "From \(when)", time: Clocks.utc(after), day: Clocks.season(z.tz, next.at + 1) ?? "standard")],
+                       at: next.at,
+                       headline: yesNo ? title : "\(Clocks.owner(name)) clocks \(Clocks.move(next.shift)) \(when)",
+                       gap: Clocks.signed(next.shift))
+        }
+        return nil
     }
 
     private static func time(_ m: Double, _ tz: TimeZone) -> String { let l = Local(tz, m); return "\(clock(l)) \(ampm(l.h))" }
@@ -450,6 +782,15 @@ enum Ask {
     private var asked: Set<String> = []
 
     func look(for query: String, people: [Person]) async {
+        // Airport codes whose zone isn't certain offline ("KZN", "GIG"): from the airport's city on Apple Maps.
+        for w in query.split(whereSeparator: { !$0.isLetter }) where w.count == 3 {
+            let code = w.uppercased()
+            guard let a = Airports.byCode[code], a.tz == nil, !asked.contains(code),
+                  !Airports.words.contains(code.lowercased()) || w == w.uppercased() else { continue }
+            asked.insert(code)
+            let country = Locale(identifier: "en").localizedString(forRegionCode: a.country) ?? a.country
+            if let tz = await findPlace("\(a.city), \(country)")?.timeZone { zones.append(Zone(name: a.label, tz: tz, key: code.lowercased())) }
+        }
         guard let words = Ask.placeWords(query), !asked.contains(words),
               JumpParser.zone(in: " \(words) ", people: people, extra: zones) == nil else { return }
         try? await Task.sleep(for: .milliseconds(350))
