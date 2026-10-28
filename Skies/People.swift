@@ -26,6 +26,8 @@ struct Person: Codable, Identifiable, Hashable {
     var tags: [String]?
     /// Gentle notifications you've asked for about them. Nil for people saved before there were any.
     var notify: Notify?
+    /// The EventKit identifier of a calendar they share with you (subscribed, read-only); its meetings count as busy.
+    var calendarID: String?
 
     struct Notify: Codable, Hashable {
         var wake = false
@@ -107,6 +109,7 @@ struct Person: Codable, Identifiable, Hashable {
         for id in tagList where !isHome {
             if let t = Tags.named(id), !t.allows(l, workdays: workdays) { return false }
         }
+        if let theirs = BusyTimes.theirs[id], BusyTimes.covers(l.at, theirs) { return false }
         return !(relation == .personal || offDuty) || !busyDay(l)
     }
 
@@ -261,10 +264,15 @@ struct Person: Codable, Identifiable, Hashable {
     }
 
     /// Free runs for the team over the 8 days from `dayStart`, cached per day and selection.
-    /// Forget worked-out windows (your calendar changed).
-    func refreshRuns() { runsCache.removeAll() }
+    /// Forget worked-out windows (a calendar changed). The bump redraws every screen that reads runs, statuses included.
+    func refreshRuns() {
+        runsCache.removeAll()
+        busyStamp += 1
+    }
+    private var busyStamp = 0
 
     func runs(from dayStart: Double) -> [ClosedRange<Double>] {
+        _ = busyStamp
         let k = "\(Int(dayStart))|\(picked.sorted { $0.uuidString < $1.uuidString })"
         if let hit = runsCache[k] { return hit }
         let r = freeRuns(team, from: dayStart, slots: 96 * 8, mode: mode)

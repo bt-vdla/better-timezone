@@ -195,6 +195,10 @@ struct PersonEditor: View {
                 }
             }
 
+            if !person.isHome {
+                TheirCalendar(person: $person)
+            }
+
             Section {
                 Picker("From", selection: $person.start) {
                     ForEach(halfHours.dropLast(), id: \.self) { Text(hourText($0)).tag($0) }
@@ -399,6 +403,84 @@ struct TimeFormatPicker: View {
 }
 
 /// "Skip my meetings": your calendar's busy times come out of every free window.
+/// A calendar they share with you, read-only: one you already subscribe to, or their link, which Calendar subscribes to
+/// and keeps fresh. Its meetings count as busy for them.
+struct TheirCalendar: View {
+    @Binding var person: Person
+    @State private var calendars = Calendars.shared
+    @State private var asking = false
+    @State private var link = ""
+    @State private var refusal: Calendars.Refusal?
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Section {
+            if calendars.granted {
+                Picker("Calendar", selection: $person.calendarID) {
+                    Text("None").tag(String?.none)
+                    if let id = person.calendarID, !calendars.all.contains(where: { $0.id == id }) {
+                        Text("Missing calendar").tag(Optional(id))
+                    }
+                    ForEach(calendars.all) { c in Text(c.title).tag(Optional(c.id)) }
+                }
+            } else {
+                Button("Allow calendar access", systemImage: "calendar") { Task { _ = await calendars.allow() } }
+            }
+            Button("Subscribe with their link…", systemImage: "link.badge.plus") {
+                link = ""
+                asking = true
+            }
+            if calendars.waiting?.person == person.id {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("Waiting for Calendar to subscribe…").foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Cancel") { calendars.cancelWaiting() }
+                }
+            }
+        } header: {
+            Text("Their calendar")
+        } footer: {
+            Text("A calendar they've shared with you, like a Google Calendar share link, Google's \"secret address in iCal format\" or an Outlook .ics link. Their meetings count as busy in free times, their status and Ask; Skies only reads when they're busy.")
+        }
+        .onChange(of: person.calendarID) { calendars.load() }
+        .alert("Their calendar link", isPresented: $asking) {
+            TextField("https:// or webcal://", text: $link)
+                .autocorrectionDisabled()
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                .keyboardType(.URL)
+                #endif
+            Button("Subscribe") {
+                Task {
+                    do throws(Calendars.Refusal) { try await calendars.subscribe(link, for: person.id) } catch { refusal = error }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Calendar asks to subscribe, then Skies links it to \(person.name).")
+        }
+        .alert(refusal == .noAccess ? "Skies can't read calendars" : "That isn't a calendar link",
+               isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } }), presenting: refusal) { r in
+            if r == .noAccess {
+                Button("Open Settings") { openURL(Self.privacySettings) }
+            }
+            Button("OK", role: .cancel) {}
+        } message: { r in
+            switch r {
+            case .noAccess: Text("Turn on Skies under Privacy & Security, Calendars, then subscribe again.")
+            case .notALink: Text("Paste the link they shared, starting with https:// or webcal://.")
+            }
+        }
+    }
+
+    #if os(macOS)
+    private static let privacySettings = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")!
+    #else
+    private static let privacySettings = URL(string: UIApplication.openSettingsURLString)!
+    #endif
+}
+
 struct CalendarToggle: View {
     @State private var calendars = Calendars.shared
     var body: some View {

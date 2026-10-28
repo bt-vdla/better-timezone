@@ -70,6 +70,34 @@ struct SkyTests {
         #expect(Ask.hits("when can i call \(name)", people: team, now: mondayNoonUTC).first?.id == "when")
     }
 
+    /// A calendar they share: its meetings beat the guess from their clock, everywhere free time is worked out.
+    @Test func calendarLinks() {
+        let google = "webcal://calendar.google.com/calendar/ical/jagadishbandi1%40gmail.com/public/basic.ics"
+        #expect(Calendars.feed(from: "https://calendar.google.com/calendar/u/0?cid=amFnYWRpc2hiYW5kaTFAZ21haWwuY29t")?.absoluteString == google)
+        #expect(Calendars.feed(from: " https://calendar.google.com/calendar/embed?src=jagadishbandi1%40gmail.com&ctz=Asia%2FKolkata ")?.absoluteString == google)
+        #expect(Calendars.feed(from: "https://calendar.google.com/calendar/ical/abc%40group.calendar.google.com/private-123/basic.ics")?.absoluteString
+            == "webcal://calendar.google.com/calendar/ical/abc%40group.calendar.google.com/private-123/basic.ics")
+        #expect(Calendars.feed(from: "https://outlook.office365.com/owa/calendar/x/calendar.ics")?.scheme == "webcal")
+        #expect(Calendars.feed(from: "jagadish's calendar") == nil)
+    }
+
+    @Test func theirCalendar() {
+        let sam = Person(city: "London", label: "Sam", tzID: "Europe/London", lat: 51.5, lon: -0.13, region: "GB")
+        let now = mondayNoonUTC   // 13:00 in London: lunch, so free by the clock
+        #expect(Local(sam.tz, now + 7).at == now + 7)
+        #expect(status(sam, Local(sam.tz, now)).0 == "Lunch break")
+        #expect(sam.free(Local(sam.tz, now)))
+
+        BusyTimes.theirs[sam.id] = [(now - 15)...(now + 15)]
+        defer { BusyTimes.theirs[sam.id] = nil }
+        #expect(status(sam, Local(sam.tz, now)).0 == "In a meeting")
+        #expect(!sam.free(Local(sam.tz, now)))
+        #expect(sam.free(Local(sam.tz, now + 15)))   // still lunch, and the meeting is over
+        let asked = Ask.hits("can i call sam now", people: team + [sam], now: now).first
+        #expect(asked?.id == "ask-\(sam.id)")
+        #expect(asked?.title == "Not now: in a meeting")
+    }
+
     /// A version or build bump without a line in the version log fails here.
     @Test func versionLogged() {
         #expect(Release.all.first?.version == Release.installedVersion)

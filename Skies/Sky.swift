@@ -18,6 +18,9 @@ struct Local {
         m = Int(dayMin) % 60
         wd = ((dn + 4) % 7 + 7) % 7
     }
+
+    /// The moment back again, in minutes since 1970.
+    var at: Double { Double(dn) * 1440 + f * 60 - Double(off) }
 }
 
 /// 12- or 24-hour clocks: the system's choice unless Settings overrides it ("system", "12", "24" in `timeFormat`).
@@ -63,6 +66,8 @@ func dur(_ minutes: Double) -> String {
 /// Your calendar's busy times (minutes since 1970), when you've let Skies read it. Empty in widgets.
 enum BusyTimes {
     nonisolated(unsafe) static var current: [ClosedRange<Double>] = []
+    /// Meetings on the calendar each person shares with you, by person id. Empty in widgets.
+    nonisolated(unsafe) static var theirs: [UUID: [ClosedRange<Double>]] = [:]
 
     /// True if the quarter hour starting at `a` overlaps a meeting.
     static func covers(_ a: Double, _ busy: [ClosedRange<Double>] = current) -> Bool {
@@ -255,6 +260,8 @@ private let green = hex("#34D399"), amber = hex("#FFC46B"), orange = hex("#FFB34
 
 /// What they're probably doing, in the words that matter for how you know them.
 func status(_ p: Person, _ l: Local) -> (String, RGB) {
+    // Their own calendar beats any guess from the clock.
+    if BusyTimes.theirs[p.id]?.contains(where: { $0.contains(l.at) }) == true { return ("In a meeting", amber) }
     let f = l.f, weekday = (p.relation == .work ? p.workdays : p.weekdays).contains(l.wd)
     switch p.relation {
     case .work:

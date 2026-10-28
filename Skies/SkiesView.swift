@@ -220,7 +220,8 @@ struct SkiesView: View {
         return Color.clear.overlay { VStack(spacing: 0) {
             ForEach(people.visible) { p in
                 let l = p.isHome ? h : Local(p.tz, m)
-                SkyRow(person: p, minutes: m, local: l, home: h,
+                // Worked out here, not in the row: a calendar loading changes it without changing the row's inputs.
+                SkyRow(person: p, minutes: m, local: l, home: h, status: status(p, l),
                        dimmed: !people.everyone && !people.team.contains(p), picked: !people.picked.isEmpty && people.picked.contains(p.id),
                        animateDigits: !model.isMoving, occasion: occasion(p, l))
                     .contentShape(Rectangle())
@@ -518,11 +519,12 @@ struct EdgeFade: View {
 
 struct SkyRow: View {
     let person: Person, minutes: Double, local: Local, home: Local
+    let status: (String, RGB)
     var dimmed = false, picked = false, animateDigits = true
     var occasion: (icon: String, text: String)? = nil
 
     var body: some View {
-        let (label, dot) = status(person, local)
+        let (label, dot) = status
         // The digits ride on top of a same-width stand-in in RowLabels, which is Equatable: scrubbing changes one
         // Text per row instead of re-running ViewThatFits (both layouts, three meta lines each) every frame.
         RowLabels(person: person, label: label, dot: dot, picked: picked, occasion: occasion.map { [$0.icon, $0.text] },

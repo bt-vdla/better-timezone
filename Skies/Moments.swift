@@ -200,32 +200,109 @@ extension Person {
 
 // MARK: - Your calendar
 
-/// Your meetings, so free windows skip them. Opt-in: it needs full calendar access, like holidays.
+/// Your meetings, so free windows skip them, and the calendars other people share with you, so theirs do too.
+/// Both need full calendar access, like holidays.
 @MainActor @Observable final class Calendars {
     static let shared = Calendars()
     static let key = "useCalendar"
     private(set) var on = UserDefaults.skies.bool(forKey: key)
+    /// Every event calendar on this device, for picking the one a person shares.
+    private(set) var all: [Info] = []
+    /// Someone waiting for a link to finish subscribing in Calendar, and the calendars that existed before it.
+    private(set) var waiting: (person: UUID, known: Set<String>, since: Date)?
     @ObservationIgnored private let store = EKEventStore()
     @ObservationIgnored private var watching: Any?
 
+    struct Info: Identifiable, Hashable {
+        let id: String, title: String, source: String
+    }
+
+    var granted: Bool { EKEventStore.authorizationStatus(for: .event) == .fullAccess }
+
+    func allow() async -> Bool {
+        if !granted { _ = try? await store.requestFullAccessToEvents() }
+        load()
+        return granted
+    }
+
     func turn(_ on: Bool) async {
-        if on, EKEventStore.authorizationStatus(for: .event) != .fullAccess {
-            guard (try? await store.requestFullAccessToEvents()) == true else { self.on = false; return }
-        }
+        if on, !(await allow()) { self.on = false; return }
         self.on = on
         UserDefaults.skies.set(on, forKey: Self.key)
         load()
     }
 
+    enum Refusal: Error { case notALink, noAccess }
+
+    /// The webcal:// feed behind a shared link. Google's share and embed links ("…/calendar/u/0?cid=…",
+    /// "…/embed?src=…") name the calendar rather than its feed, so they become its public iCal address.
+    nonisolated static func feed(from link: String) -> URL? {
+        guard var c = URLComponents(string: link.trimmingCharacters(in: .whitespacesAndNewlines)),
+              ["http", "https", "webcal", "webcals"].contains(c.scheme?.lowercased() ?? ""), let host = c.host else { return nil }
+        if host.hasSuffix("calendar.google.com"), !c.path.contains("/ical/"),
+           let raw = c.queryItems?.first(where: { $0.name == "cid" || $0.name == "src" })?.value {
+            guard let id = raw.contains("@") ? raw : googleID(raw),
+                  let escaped = id.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: ".-_"))) else { return nil }
+            return URL(string: "webcal://calendar.google.com/calendar/ical/\(escaped)/public/basic.ics")
+        }
+        c.scheme = "webcal"   // an https link would open in the browser instead
+        return c.url
+    }
+
+    /// `cid` is the calendar's id in URL-safe base64, usually without padding.
+    nonisolated private static func googleID(_ cid: String) -> String? {
+        var b = cid.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        b += String(repeating: "=", count: (4 - b.count % 4) % 4)
+        guard let data = Data(base64Encoded: b), let id = String(data: data, encoding: .utf8), id.contains("@") else { return nil }
+        return id
+    }
+
+    /// Hands a shared link ("https://…/basic.ics", "webcal://…", a Google share link) to Calendar's own Subscribe
+    /// prompt, which keeps it fresh. The next new calendar to appear is linked to `person`.
+    func subscribe(_ link: String, for person: UUID) async throws(Refusal) {
+        guard let url = Self.feed(from: link) else { throw .notALink }
+        guard await allow() else { throw .noAccess }
+        waiting = (person, Set(store.calendars(for: .event).map(\.calendarIdentifier)), .now)
+        #if os(macOS)
+        NSWorkspace.shared.open(url)
+        #else
+        await UIApplication.shared.open(url)
+        #endif
+    }
+
+    func cancelWaiting() { waiting = nil }
+
     /// Busy events for the next eight days: not all-day, not marked free, not cancelled or declined.
+    /// Calendars linked to people count for them, never for you.
     func load() {
         defer { People.shared.refreshRuns() }
-        guard on, EKEventStore.authorizationStatus(for: .event) == .fullAccess else { BusyTimes.current = []; return }
+        guard granted else { BusyTimes.current = []; BusyTimes.theirs = [:]; all = []; return }
+        let calendars = store.calendars(for: .event)
+        all = calendars.map { Info(id: $0.calendarIdentifier, title: $0.title, source: $0.source.title) }
+            .sorted { ($0.source, $0.title) < ($1.source, $1.title) }
+        // A prompt closed without subscribing shouldn't claim some unrelated calendar added later.
+        if let w = waiting, Date.now.timeIntervalSince(w.since) > 600 { waiting = nil }
+        if let w = waiting, let new = calendars.first(where: { !w.known.contains($0.calendarIdentifier) }),
+           let i = People.shared.list.firstIndex(where: { $0.id == w.person }) {
+            People.shared.list[i].calendarID = new.calendarIdentifier
+            waiting = nil
+        }
+
         let start = Date.now.addingTimeInterval(-86400), end = start.addingTimeInterval(9 * 86400)
-        BusyTimes.current = store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil))
-            .filter { !$0.isAllDay && $0.availability != .free && $0.status != .canceled
-                && $0.attendees?.first(where: \.isCurrentUser)?.participantStatus != .declined }
-            .map { ($0.startDate.timeIntervalSince1970 / 60)...($0.endDate.timeIntervalSince1970 / 60) }
+        func busy(_ in: [EKCalendar]) -> [ClosedRange<Double>] {
+            guard !`in`.isEmpty else { return [] }
+            return store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: `in`))
+                .filter { !$0.isAllDay && $0.availability != .free && $0.status != .canceled
+                    && $0.attendees?.first(where: \.isCurrentUser)?.participantStatus != .declined }
+                .map { ($0.startDate.timeIntervalSince1970 / 60)...($0.endDate.timeIntervalSince1970 / 60) }
+        }
+        let linked = Set(People.shared.list.compactMap(\.calendarID))
+        BusyTimes.current = on ? busy(calendars.filter { !linked.contains($0.calendarIdentifier) }) : []
+        var theirs: [UUID: [ClosedRange<Double>]] = [:]
+        for p in People.shared.list {
+            if let id = p.calendarID, let c = calendars.first(where: { $0.calendarIdentifier == id }) { theirs[p.id] = busy([c]) }
+        }
+        BusyTimes.theirs = theirs
         if watching == nil {
             watching = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: store, queue: .main) { _ in
                 MainActor.assumeIsolated { Calendars.shared.load() }

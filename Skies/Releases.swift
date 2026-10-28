@@ -12,6 +12,15 @@ struct Release: Identifiable {
     static var installedBuild: Int { Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "") ?? 0 }
 
     static let all: [Release] = [
+        Release(version: "1.2.1", build: 7, date: "2026-10-27", changes: [
+            (.fixed, "Google Calendar share links (calendar.google.com/…?cid=…) subscribe to that calendar"),
+            (.better, "When Skies can't read calendars, it says so and opens Settings, instead of blaming the link"),
+        ]),
+        Release(version: "1.2", build: 6, date: "2026-10-27", changes: [
+            (.new, "Their calendar: link a calendar someone shares with you, or paste their read-only link and Calendar subscribes to it"),
+            (.new, "Their meetings count as busy: free times, fair meetings and Ask skip them, and their row says \"In a meeting\""),
+            (.better, "Calendars linked to people never count as your own meetings"),
+        ]),
         Release(version: "1.1.1", build: 5, date: "2026-10-27", changes: [
             (.new, "Version history, under People on iPhone and in Settings on Mac"),
             (.fixed, "Ask answers \"can I call Kate now\" and \"is it a good time to ring Mom\" with yes or not now, and when they're next free"),

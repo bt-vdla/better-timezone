@@ -501,7 +501,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SkiesWidgets/SkiesWidgets-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = SkiesWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -509,7 +509,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies.widgets;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -528,7 +528,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SkiesWidgets/SkiesWidgets-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_APP_SANDBOX = YES;
 				INFOPLIST_FILE = SkiesWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -536,7 +536,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies.widgets;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -621,7 +621,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Skies/Skies-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
@@ -631,7 +631,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Skies;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads your holiday calendars to show public holidays where your people live.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads when you, and anyone whose calendar you link, are busy, so free times skip meetings. It also reads holiday calendars for public holidays where your people live.";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Skies adds the calls and meetings you plan to your calendar.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Skies shows the photo and birthday of contacts you link to a city.";
 				"INFOPLIST_KEY_NSSupportsLiveActivities[sdk=iphone*]" = YES;
@@ -642,7 +642,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -662,7 +662,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Skies/Skies-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
@@ -672,7 +672,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Skies;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				"INFOPLIST_KEY_LSUIElement[sdk=macosx*]" = YES;
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads your holiday calendars to show public holidays where your people live.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Skies reads when you, and anyone whose calendar you link, are busy, so free times skip meetings. It also reads holiday calendars for public holidays where your people live.";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Skies adds the calls and meetings you plan to your calendar.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Skies shows the photo and birthday of contacts you link to a city.";
 				"INFOPLIST_KEY_NSSupportsLiveActivities[sdk=iphone*]" = YES;
@@ -683,7 +683,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.btstd.skies;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
